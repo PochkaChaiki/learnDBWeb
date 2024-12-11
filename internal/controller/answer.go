@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"learnDB/internal/domain"
 	"learnDB/internal/service"
 	"log"
 	"strconv"
@@ -8,17 +9,35 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// GET /api/answer
-// GET /api/answer/{id}
-// POST /api/answer --> /api/query
-// DELETE /api/answer/{id}
-
 type AnswerController struct {
 	service *service.ServiceAnswer
 }
 
 func NewAnswerController(s *service.ServiceAnswer) *AnswerController {
 	return &AnswerController{service: s}
+}
+
+func (cnt *AnswerController) CreateAnswer(c fiber.Ctx) error {
+
+	ans := new(domain.Answer)
+	if err := c.Bind().JSON(ans); err != nil {
+		log.Fatalf("create answer error: %s", err)
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	switch res := cnt.service.Create(ans); res {
+	case service.Ok:
+		c.JSON(fiber.Map{
+			"status":  "ok",
+			"message": "created",
+		})
+		return c.SendStatus(fiber.StatusCreated)
+	case service.InternalError:
+		c.SendStatus(fiber.StatusInternalServerError)
+	default:
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+	return nil
 }
 
 func (cnt *AnswerController) GetAllAnswers(c fiber.Ctx) error {
@@ -83,6 +102,4 @@ func (cnt *AnswerController) DeleteAnswer(c fiber.Ctx) error {
 	default:
 		return c.SendStatus(fiber.StatusNoContent)
 	}
-
-	return nil
 }

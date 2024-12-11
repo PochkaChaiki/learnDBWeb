@@ -1,34 +1,35 @@
 package main
 
 import (
+	apiserver "learnDB/internal/apiServer"
 	"learnDB/internal/config"
+	"learnDB/internal/controller"
+	"learnDB/internal/service"
 	"learnDB/internal/storage"
+	"learnDB/internal/storage/sqlite"
 
-	"github.com/gofiber/fiber/v3"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
 
 	config := config.MustLoad()
-	storage := storage.New(config.StoragePath)
 
-	app := fiber.New()
+	db := sqlx.MustConnect("sqlite3", config.StoragePath)
+	defer db.Close()
+	storage := storage.Storage{
+		AnswerStorage:   sqlite.NewAnswerStorage(db),
+		DBStorage:       sqlite.NewDBStorage(db),
+		DBSampleStorage: sqlite.NewDBSampleStorage(db),
+		QueryStorage:    sqlite.NewQueryStorage(db),
+		QuestionStorage: sqlite.NewQuestionStorage(db),
+	}
 
-	api := app.Group("/api")
+	service := service.New(&storage)
+	controller := controller.New(service)
+	server := apiserver.New(config.Address, controller)
 
-	question := api.Group("/question")
-	question.Use(authMiddleware)
-	question.Get("/", getQuestions)
-	question.Get("/:id", getQuestion)
-	question.Post("/", postQuestion)
-	question.Put("/", putQuestion)
-	question.Delete("/:id", deleteQuestion)
+	server.Run()
 
-	answer := api.Group("/answer")
-	answer.Use(authMiddleware)
-	answer.Get("/", getAnswer)
-	answer.Get("/:id", getAnswer)
-	answer.Post("/", postAnswer)
-	answer.Put("/", putAnswer)
-	answer.Delete("/:id", deleteAnswer)
 }

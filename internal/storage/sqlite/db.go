@@ -22,9 +22,9 @@ func (r *DBStorage) Insert(db *domain.DB) error {
 	return nil
 }
 
-func (r *DBStorage) Get(id int) (db *domain.DB, err error) {
-
-	if err = r.db.Get(db, "select db_id, db_name from db where db_id = ?;", id); err != nil {
+func (r *DBStorage) Get(id int) (*domain.DB, error) {
+	db := new(domain.DB)
+	if err := r.db.Get(db, "select db_id, db_name from db where db_id = ?;", id); err != nil {
 		return nil, fmt.Errorf("select db error: %s", err)
 	}
 	return db, nil

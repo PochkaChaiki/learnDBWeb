@@ -135,6 +135,4 @@ func (cnt *QuestionController) DeleteQuestion(c fiber.Ctx) error {
 	default:
 		return c.SendStatus(fiber.StatusNoContent)
 	}
-
-	return nil
 }

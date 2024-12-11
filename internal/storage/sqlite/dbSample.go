@@ -23,8 +23,8 @@ func (r *DBSampleStorage) Insert(dbs *domain.DBSample) error {
 	return nil
 }
 
-func (r *DBSampleStorage) Get(id int) (dbs *domain.DBSample, err error) {
-
+func (r *DBSampleStorage) Get(id int) (*domain.DBSample, error) {
+	dbs := new(domain.DBSample)
 	if err := r.db.Get(dbs, "select db_sample_id, description, filepath, db_id from db_sample where db_sample_id = ?;", id); err != nil {
 		return nil, fmt.Errorf("select dbsample error: %s", err)
 	}

@@ -23,8 +23,8 @@ func (r *QuestionStorage) Insert(q *domain.Question) error {
 	return nil
 }
 
-func (r *QuestionStorage) Get(id int) (q *domain.Question, err error) {
-
+func (r *QuestionStorage) Get(id int) (*domain.Question, error) {
+	q := new(domain.Question)
 	if err := r.db.Get(q, "select question_id, question_text, correct_answer, db_sample_id from question where question_id = ?;", id); err != nil {
 		return nil, fmt.Errorf("select question error: %s", err)
 	}

@@ -11,6 +11,7 @@ import (
 // DELETE /api/answer/{id}
 
 type AnswerStorage interface {
+	Insert(*domain.Answer) error
 	Get(int) (*domain.Answer, error)
 	GetAll() ([]domain.Answer, error)
 	Delete(int) error
@@ -22,6 +23,14 @@ type ServiceAnswer struct {
 
 func NewServiceAnswer(s AnswerStorage) *ServiceAnswer {
 	return &ServiceAnswer{storage: s}
+}
+
+func (srv *ServiceAnswer) Create(ans *domain.Answer) OperationResult {
+	if err := srv.storage.Insert(ans); err != nil {
+		log.Fatalf("answer service create error: %s", err)
+		return InternalError
+	}
+	return Ok
 }
 
 func (srv *ServiceAnswer) GetAll() ([]domain.Answer, OperationResult) {

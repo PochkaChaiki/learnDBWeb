@@ -23,8 +23,8 @@ func (r *UserStorage) Insert(u *domain.User) error {
 	return nil
 }
 
-func (r *UserStorage) Get(id int) (u *domain.User, err error) {
-
+func (r *UserStorage) Get(id int) (*domain.User, error) {
+	u := new(domain.User)
 	if err := r.db.Get(u, "select user_id, username, password from user where user_id = ?;", id); err != nil {
 		return nil, fmt.Errorf("select user error: %s", err)
 	}

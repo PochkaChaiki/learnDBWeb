@@ -23,8 +23,8 @@ func (r *QueryStorage) Insert(q *domain.Query) error {
 	return nil
 }
 
-func (r *QueryStorage) Get(id int) (q *domain.Query, err error) {
-
+func (r *QueryStorage) Get(id int) (*domain.Query, error) {
+	q := new(domain.Query)
 	if err := r.db.Get(q, "select query_id, script, info, executed_at, user_id, db_id from query where query_id = ?;", id); err != nil {
 		return nil, fmt.Errorf("select query error: %s", err)
 	}

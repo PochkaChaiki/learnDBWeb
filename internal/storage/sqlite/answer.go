@@ -23,9 +23,9 @@ func (r *AnswerStorage) Insert(ans *domain.Answer) error {
 	return nil
 }
 
-func (r *AnswerStorage) Get(id int) (ans *domain.Answer, err error) {
-
-	if err = r.db.Get(ans, "select answer_id, answer_text, is_correct, question_id, query_id from answer where answer_id = ?;", id); err != nil {
+func (r *AnswerStorage) Get(id int) (*domain.Answer, error) {
+	ans := new(domain.Answer)
+	if err := r.db.Get(ans, "select answer_id, answer_text, is_correct, question_id, query_id from answer where answer_id = ?;", id); err != nil {
 		return nil, fmt.Errorf("select answer error: %s", err)
 	}
 	return ans, nil
