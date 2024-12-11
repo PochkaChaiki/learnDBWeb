@@ -2,41 +2,33 @@ package main
 
 import (
 	"learnDB/internal/config"
-	"learnDB/internal/models/db"
-	"learnDB/internal/models/dbSample"
-	"learnDB/internal/models/user"
 	"learnDB/internal/storage"
-	"log"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
 
 	config := config.MustLoad()
 	storage := storage.New(config.StoragePath)
-	if err := SeedData(storage); err != nil {
-		log.Fatalf(err.Error())
-	}
 
-}
+	app := fiber.New()
 
-func SeedData(st *storage.Storage) error {
-	users := []user.User{
-		{Username: "admin", Password: "password"},
-		{Username: "user", Password: "qwerty"},
-	}
-	for _, u := range users {
-		if err := u.Insert(st); err != nil {
-			log.Fatalf("seed data error: %s", err)
-		}
-	}
+	api := app.Group("/api")
 
-	db := db.DB{Name: "sqlite3"}
-	if err := db.Insert(st); err != nil {
-		log.Fatalf("seed data error: %s", err)
-	}
-	dbSample := dbSample.DBSample{Description: "some db", Filepath: "/home/pochka/", DBId: 1}
-	if err := dbSample.Insert(st); err != nil {
-		log.Fatalf("seed data error: %s", err)
-	}
-	return nil
+	question := api.Group("/question")
+	question.Use(authMiddleware)
+	question.Get("/", getQuestions)
+	question.Get("/:id", getQuestion)
+	question.Post("/", postQuestion)
+	question.Put("/", putQuestion)
+	question.Delete("/:id", deleteQuestion)
+
+	answer := api.Group("/answer")
+	answer.Use(authMiddleware)
+	answer.Get("/", getAnswer)
+	answer.Get("/:id", getAnswer)
+	answer.Post("/", postAnswer)
+	answer.Put("/", putAnswer)
+	answer.Delete("/:id", deleteAnswer)
 }
