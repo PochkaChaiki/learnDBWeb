@@ -4,6 +4,7 @@ import (
 	"learnDB/internal/config"
 	"learnDB/internal/domain"
 	"learnDB/internal/storage/sqlite"
+	"learnDB/internal/utils"
 	"sync"
 
 	"log"
@@ -34,7 +35,7 @@ func main() {
 	sf := &SafeSeeding{mu: sync.Mutex{}, wg: sync.WaitGroup{}}
 
 	sf.wg.Add(1)
-	go sf.SeedUser(sqlite.NewUserStorage(db))
+	go sf.SeedUser(sqlite.NewUserStorage(db), config.Salt)
 
 	sf.wg.Add(1)
 	go sf.SeedDB(sqlite.NewDBStorage(db))
@@ -45,10 +46,11 @@ func main() {
 	sf.wg.Wait()
 }
 
-func (sf *SafeSeeding) SeedUser(s Storage[domain.User]) {
+func (sf *SafeSeeding) SeedUser(s Storage[domain.User], salt string) {
+
 	users := []domain.User{
-		{Username: "admin", Password: "password"},
-		{Username: "user", Password: "qwerty"},
+		{Username: "admin", Password: OmitErrorString(utils.SaltAndHashString("password", salt))},
+		{Username: "user", Password: OmitErrorString(utils.SaltAndHashString("qwerty", salt))},
 	}
 	for _, u := range users {
 		if err := s.Insert(&u); err != nil {
@@ -78,4 +80,8 @@ func (sf *SafeSeeding) SeedDBSample(s Storage[domain.DBSample]) {
 		sf.mu.Unlock()
 	}
 	sf.wg.Done()
+}
+
+func OmitErrorString(i string, err error) string {
+	return i
 }

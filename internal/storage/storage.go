@@ -43,11 +43,9 @@ type QueryStorage interface {
 }
 
 type UserStorage interface {
-	Insert(*domain.User) error
 	Get(int) (*domain.User, error)
 	GetAll() ([]domain.User, error)
-	Update(*domain.User) error
-	Delete(int) error
+	GetUserByUsername(string) (*domain.User, error)
 }
 
 type Storage struct {

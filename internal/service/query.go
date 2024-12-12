@@ -26,7 +26,7 @@ func NewServiceQuery(s QueryStorage) *ServiceQuery {
 func (srv *ServiceQuery) GetAll() ([]domain.Query, OperationResult) {
 	qs, err := srv.storage.GetAll()
 	if err != nil {
-		log.Fatalf("query service get all error: %s", err)
+		log.Printf("query service get all error: %s", err)
 		return nil, InternalError
 	}
 	return qs, Ok
@@ -35,14 +35,14 @@ func (srv *ServiceQuery) GetAll() ([]domain.Query, OperationResult) {
 func (srv *ServiceQuery) Get(id int) (*domain.Query, OperationResult) {
 	q, err := srv.storage.Get(id)
 	if err != nil {
-		log.Fatalf("query service get error: %s", err)
+		log.Printf("query service get error: %s", err)
 		return nil, InternalError
 	}
 	return q, Ok
 }
 func (srv *ServiceQuery) Create(q *domain.Query) OperationResult {
 	if err := srv.storage.Insert(q); err != nil {
-		log.Fatalf("query service error: %s", err)
+		log.Printf("query service error: %s", err)
 		return InternalError
 	}
 	return Ok

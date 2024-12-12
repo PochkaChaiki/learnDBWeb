@@ -40,7 +40,7 @@ func (cnt *QueryController) GetAllQueries(c fiber.Ctx) error {
 func (cnt *QueryController) GetQuery(c fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		log.Fatalf("get query error: %s", err)
+		log.Printf("get query error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
@@ -63,7 +63,7 @@ func (cnt *QueryController) CreateQuery(c fiber.Ctx) error {
 
 	q := new(domain.Query)
 	if err := c.Bind().JSON(q); err != nil {
-		log.Fatalf("create query error: %s", err)
+		log.Printf("create query error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	switch res := cnt.service.Create(q); res {

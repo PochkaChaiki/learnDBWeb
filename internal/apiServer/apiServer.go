@@ -11,10 +11,11 @@ import (
 type APIServer struct {
 	address    string
 	controller *controller.APIController
+	auth       *controller.AuthController
 }
 
-func New(a string, c *controller.APIController) *APIServer {
-	return &APIServer{address: a, controller: c}
+func New(a string, s []byte, c *controller.APIController, auth *controller.AuthController) *APIServer {
+	return &APIServer{address: a, controller: c, auth: auth}
 }
 
 // GET /api/answer
@@ -38,21 +39,28 @@ func (s *APIServer) Run() {
 	Logger := logger.New()
 	app.Use(Logger)
 
+	app.Post("/login", s.auth.Login)
+
 	api := app.Group("/api")
 
 	question := api.Group("/question")
 	question.Get("/", s.controller.GetAllQuestions)
 	question.Get("/:id", s.controller.GetQuestion)
+
+	question.Use(s.auth.AuthMiddleware)
+
 	question.Post("/", s.controller.CreateQuestion)
 	question.Put("/", s.controller.UpdateQuestion)
 	question.Delete("/:id", s.controller.DeleteQuestion)
 
 	query := api.Group("/query")
+	query.Use(s.auth.AuthMiddleware)
 	query.Get("/", s.controller.GetAllQueries)
 	query.Get("/:id", s.controller.GetQuery)
 	query.Post("/", s.controller.CreateQuery)
 
 	answer := api.Group("/answer")
+	answer.Use(s.auth.AuthMiddleware)
 	answer.Get("/", s.controller.GetAllAnswers)
 	answer.Get("/:id", s.controller.GetAnswer)
 	answer.Post("/", s.controller.CreateAnswer)

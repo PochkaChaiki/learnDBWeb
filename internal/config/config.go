@@ -9,8 +9,12 @@ import (
 )
 
 type Config struct {
-	StoragePath string `yaml:"storage_path" env-required:"true"`
-	HTTPServer  `yaml:"http_server"`
+	StoragePath     string        `yaml:"storage_path" env-required:"true"`
+	SecretKey       string        `yaml:"secret_key" env-required:"true"`
+	ExpirationTime  time.Duration `yaml:"expiration_time" env-default:"1m"`
+	AdminCredential string        `yaml:"admin_credential" env-default:"admin"`
+	Salt            string        `yaml:"salt" env-default:"yeeeeaaaaaahhSAAALLT"`
+	HTTPServer      `yaml:"http_server"`
 }
 
 type HTTPServer struct {

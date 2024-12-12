@@ -5,6 +5,7 @@ import (
 	"learnDB/internal/domain"
 
 	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type DBSampleStorage struct {

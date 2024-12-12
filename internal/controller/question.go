@@ -26,7 +26,7 @@ func NewQuestionController(s *service.ServiceQuestion) *QuestionController {
 func (cnt *QuestionController) CreateQuestion(c fiber.Ctx) error {
 	q := new(domain.Question)
 	if err := c.Bind().JSON(q); err != nil {
-		log.Fatalf("create question error: %s", err)
+		log.Printf("create question error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 	switch res := cnt.service.Create(q); res {
@@ -48,7 +48,7 @@ func (cnt *QuestionController) CreateQuestion(c fiber.Ctx) error {
 func (cnt *QuestionController) GetQuestion(c fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		log.Fatalf("get query error: %s", err)
+		log.Printf("get query error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
@@ -86,6 +86,7 @@ func (cnt *QuestionController) GetAllQuestions(c fiber.Ctx) error {
 func (cnt *QuestionController) UpdateQuestion(c fiber.Ctx) error {
 	q := new(domain.Question)
 	if err := c.Bind().JSON(q); err != nil {
+		log.Printf("update question error: %v", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 

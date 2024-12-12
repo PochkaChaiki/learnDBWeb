@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	apiserver "learnDB/internal/apiServer"
 	"learnDB/internal/config"
 	"learnDB/internal/controller"
@@ -24,11 +25,15 @@ func main() {
 		DBSampleStorage: sqlite.NewDBSampleStorage(db),
 		QueryStorage:    sqlite.NewQueryStorage(db),
 		QuestionStorage: sqlite.NewQuestionStorage(db),
+		UserStorage:     sqlite.NewUserStorage(db),
 	}
 
-	service := service.New(&storage)
-	controller := controller.New(service)
-	server := apiserver.New(config.Address, controller)
+	fmt.Printf("expire: %d", config.ExpirationTime.Abs())
+	apiService := service.New(&storage)
+	apiController := controller.New(apiService)
+	authService := service.NewAuthService(storage.UserStorage, config.Salt, []byte(config.SecretKey), config.ExpirationTime, config.AdminCredential)
+	authController := controller.NewAuthController(authService)
+	server := apiserver.New(config.Address, []byte(config.SecretKey), apiController, authController)
 
 	server.Run()
 

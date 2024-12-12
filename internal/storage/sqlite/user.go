@@ -5,6 +5,7 @@ import (
 	"learnDB/internal/domain"
 
 	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type UserStorage struct {
@@ -51,4 +52,12 @@ func (r *UserStorage) Delete(id int) error {
 		return fmt.Errorf("delete user error: %s", err)
 	}
 	return nil
+}
+
+func (r *UserStorage) GetUserByUsername(name string) (*domain.User, error) {
+	u := new(domain.User)
+	if err := r.db.Get(u, "select user_id, username, password from user where username = ?;", name); err != nil {
+		return nil, fmt.Errorf("select user error: %s", err)
+	}
+	return u, nil
 }

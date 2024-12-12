@@ -21,7 +21,7 @@ func (cnt *AnswerController) CreateAnswer(c fiber.Ctx) error {
 
 	ans := new(domain.Answer)
 	if err := c.Bind().JSON(ans); err != nil {
-		log.Fatalf("create answer error: %s", err)
+		log.Printf("create answer error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
@@ -59,7 +59,7 @@ func (cnt *AnswerController) GetAllAnswers(c fiber.Ctx) error {
 func (cnt *AnswerController) GetAnswer(c fiber.Ctx) error {
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
-		log.Fatalf("get answer error: %s", err)
+		log.Printf("get answer error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 

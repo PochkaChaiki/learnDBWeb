@@ -2,3 +2,6 @@ script.sh
 storage.db
 config.yaml
 main
+.env
+server
+/test

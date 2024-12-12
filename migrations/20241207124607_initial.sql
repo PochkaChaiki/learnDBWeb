@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS query(
     query_id    integer primary key,
     script      text not null,
     info        text default null,
-    executed_at text default (datetime('now')),
+    executed_at timestamp default (datetime('now')),
     user_id     integer REFERENCES user(user_id) ON UPDATE CASCADE ON DELETE SET NULL,
     db_id       integer REFERENCES db(db_id) ON UPDATE CASCADE ON DELETE SET NULL
 );
