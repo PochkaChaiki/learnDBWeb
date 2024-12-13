@@ -66,3 +66,8 @@ func (srv *ServiceAnswer) Delete(id int) OperationResult {
 
 	return Ok
 }
+
+func (srv *ServiceAnswer) CheckAnswer(ans *domain.Answer) OperationResult {
+	ans.IsCorrect = ans.CheckAnswer()
+	return Ok
+}

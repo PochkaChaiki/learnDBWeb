@@ -25,6 +25,8 @@ func (cnt *AnswerController) CreateAnswer(c fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
+	cnt.service.CheckAnswer(ans)
+
 	switch res := cnt.service.Create(ans); res {
 	case service.Ok:
 		c.JSON(fiber.Map{

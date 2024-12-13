@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	apiserver "learnDB/internal/apiServer"
+	apiserver "learnDB/internal/app/apiServer"
 	"learnDB/internal/config"
 	"learnDB/internal/controller"
 	"learnDB/internal/service"
@@ -28,7 +27,6 @@ func main() {
 		UserStorage:     sqlite.NewUserStorage(db),
 	}
 
-	fmt.Printf("expire: %d", config.ExpirationTime.Abs())
 	apiService := service.New(&storage)
 	apiController := controller.New(apiService)
 	authService := service.NewAuthService(storage.UserStorage, config.Salt, []byte(config.SecretKey), config.ExpirationTime, config.AdminCredential)

@@ -66,6 +66,13 @@ func (cnt *QueryController) CreateQuery(c fiber.Ctx) error {
 		log.Printf("create query error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
+	if userId, ok := c.Locals("x-user-id").(int); !ok {
+		log.Printf("extract \"x-user-id\" from context error")
+		return c.SendStatus(fiber.StatusInternalServerError)
+	} else {
+		q.UserId = userId
+	}
+
 	switch res := cnt.service.Create(q); res {
 	case service.Ok:
 		c.JSON(fiber.Map{

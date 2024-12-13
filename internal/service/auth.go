@@ -28,30 +28,30 @@ func NewAuthService(st UserStorage, salt string, sk []byte, exp time.Duration, a
 	return &AuthService{storage: st, salt: salt, secretKey: sk, expirationTime: exp, adminCredential: ac}
 }
 
-func (a *AuthService) CheckUserCreds(u *domain.User) (bool, OperationResult) {
+func (a *AuthService) CheckUserCreds(u *domain.User) (int, OperationResult) {
 	dbu, err := a.storage.GetUserByUsername(u.Username)
 	if err != nil {
 		log.Printf("auth service check user error: %s", err)
-		return false, InternalError
+		return -1, InternalError
 	}
 
 	if dbu == nil {
-		return false, BadRequest
+		return -1, BadRequest
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbu.Password), []byte(u.Password+a.salt)); err != nil {
 		if err == bcrypt.ErrMismatchedHashAndPassword {
-			return false, Ok
+			return -1, Ok
 		} else {
-			return false, InternalError
+			return -1, InternalError
 		}
 	}
-	return true, Ok
+	return dbu.Id, Ok
 }
 
 func (a *AuthService) CreateAccessToken(u *domain.User) (string, bool) {
 	claims := jwt.MapClaims{
-		"sub":   u.Username,
+		"sub":   u.Id,
 		"admin": a.adminCredential == u.Username,
 		"exp":   time.Now().Add(a.expirationTime).Unix(),
 	}

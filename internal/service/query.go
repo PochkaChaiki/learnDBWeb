@@ -41,6 +41,7 @@ func (srv *ServiceQuery) Get(id int) (*domain.Query, OperationResult) {
 	return q, Ok
 }
 func (srv *ServiceQuery) Create(q *domain.Query) OperationResult {
+	q.RunQuery()
 	if err := srv.storage.Insert(q); err != nil {
 		log.Printf("query service error: %s", err)
 		return InternalError
