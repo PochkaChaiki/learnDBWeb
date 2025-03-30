@@ -24,7 +24,7 @@ func NewAuthMiddleware(keyFunc jwt.Keyfunc) fiber.Handler {
 
 		token, err := jwt.Parse(tokenString, keyFunc)
 		if err != nil {
-			log.Printf("auth middleware error: %v", err)
+			log.Printf("auth middleware error: %v; token: %v", err, tokenString)
 			return c.SendStatus(fiber.StatusForbidden)
 		}
 

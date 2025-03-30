@@ -1,6 +1,6 @@
 package controller
 
-import "learnDB/internal/service"
+import "learnDB/internal/web/service"
 
 type APIController struct {
 	AnswerController

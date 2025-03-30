@@ -1,11 +1,12 @@
 package apiserver
 
 import (
-	"learnDB/internal/app/middleware"
-	"learnDB/internal/controller"
+	"learnDB/internal/web/app/middleware"
+	"learnDB/internal/web/controller"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 )
 
@@ -39,6 +40,7 @@ func (s *APIServer) Run() {
 
 	Logger := logger.New()
 	app.Use(Logger)
+	app.Use(cors.New())
 
 	app.Post("/login", s.auth.Login)
 

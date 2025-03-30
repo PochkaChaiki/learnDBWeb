@@ -3,8 +3,8 @@ package main
 import (
 	"learnDB/internal/config"
 	"learnDB/internal/domain"
-	"learnDB/internal/storage/sqlite"
-	"learnDB/internal/utils"
+	"learnDB/internal/web/storage/sqlite"
+	"learnDB/internal/web/utils"
 	"sync"
 
 	"log"

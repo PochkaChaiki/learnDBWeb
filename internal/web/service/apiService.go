@@ -1,6 +1,6 @@
 package service
 
-import "learnDB/internal/storage"
+import "learnDB/internal/web/storage"
 
 type APIService struct {
 	ServiceAnswer

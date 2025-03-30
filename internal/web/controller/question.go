@@ -2,7 +2,7 @@ package controller
 
 import (
 	"learnDB/internal/domain"
-	"learnDB/internal/service"
+	"learnDB/internal/web/service"
 	"log"
 	"strconv"
 

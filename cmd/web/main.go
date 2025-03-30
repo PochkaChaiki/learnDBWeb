@@ -1,12 +1,12 @@
 package main
 
 import (
-	apiserver "learnDB/internal/app/apiServer"
 	"learnDB/internal/config"
-	"learnDB/internal/controller"
-	"learnDB/internal/service"
-	"learnDB/internal/storage"
-	"learnDB/internal/storage/sqlite"
+	apiserver "learnDB/internal/web/app/apiServer"
+	"learnDB/internal/web/controller"
+	"learnDB/internal/web/service"
+	"learnDB/internal/web/storage"
+	"learnDB/internal/web/storage/sqlite"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
