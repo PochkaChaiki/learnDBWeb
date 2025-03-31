@@ -1,10 +1,13 @@
-package excelReader
+package testReviewer
 
 import (
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
+
+	"learnDB/internal/domain/answer"
+	"learnDB/internal/testReviewer/domain"
 )
 
 func RetrieveScript(ans string) string {
@@ -37,10 +40,6 @@ func RetrieveScript(ans string) string {
 	return script
 }
 
-type Repository interface {
-	RunScript(sql string, limit int) (*QueryResult, error)
-}
-
 type TestChecker struct {
 	repo Repository
 }
@@ -49,27 +48,10 @@ func New(repo Repository) *TestChecker {
 	return &TestChecker{repo: repo}
 }
 
-type QueryResult struct {
-	Columns []string
-	Data    [][]any
-}
-
-type CorrectAnswer struct {
-	Values []string
-	Points int
-}
-
-// type CorrectAnswer []CorrectAnswer
-
-type CheckResult struct {
-	Points int
-	Error  error
-}
-
 // Function to check if students answer is correct
-func (tc *TestChecker) checkAnswer(sql string, correctAnswers []CorrectAnswer) *CheckResult {
+func (tc *TestChecker) checkAnswer(sql string, correctAnswers []answer.CorrectAnswer) *domain.CheckResult {
 
-	var checkResult CheckResult
+	var checkResult domain.CheckResult
 	qRes, err := tc.repo.RunScript(sql, 1)
 
 	sort.Slice(correctAnswers, func(i, j int) bool {
@@ -113,26 +95,12 @@ func (tc *TestChecker) checkAnswer(sql string, correctAnswers []CorrectAnswer) *
 	return &checkResult
 }
 
-type TestTask struct {
-	QuestionText   string
-	CorrectAnswers []CorrectAnswer
-	Answer         string
-}
-
-type StudentWork struct {
-	Name  string
-	Group string
-	Tasks []TestTask
-}
-
-type WorkReview []CheckResult
-
 // Check the work of single student
-func (tc *TestChecker) GradeTheWork(tt []TestTask) WorkReview {
+func (tc *TestChecker) GradeTheWork(tt []domain.TestTask) domain.WorkReview {
 	// So main questions are:
 	//   1) How to extract script from excel
 	//   2) How to save check results? : 1] in excel
-	wr := make(WorkReview, 0, len(tt))
+	wr := make(domain.WorkReview, 0, len(tt))
 
 	for _, task := range tt {
 		// Get script from cell
@@ -148,23 +116,15 @@ func (tc *TestChecker) GradeTheWork(tt []TestTask) WorkReview {
 	return wr
 }
 
-type ReviewedStudentWork struct {
-	TotalGrade int
-	StudentWork
-	WorkReview WorkReview
-}
-
-type ReviewedWorks []ReviewedStudentWork
-
-func (tc *TestChecker) CheckTest(sw []*StudentWork) ReviewedWorks {
-	res := make(ReviewedWorks, 0, len(sw))
+func (tc *TestChecker) CheckTest(sw []*domain.StudentWork) domain.ReviewedWorks {
+	res := make(domain.ReviewedWorks, 0, len(sw))
 	for _, work := range sw {
 		wr := tc.GradeTheWork(work.Tasks)
 		totalGrade := 0
 		for _, cr := range wr {
 			totalGrade += cr.Points
 		}
-		res = append(res, ReviewedStudentWork{
+		res = append(res, domain.ReviewedStudentWork{
 			TotalGrade:  totalGrade,
 			StudentWork: *work,
 			WorkReview:  wr,

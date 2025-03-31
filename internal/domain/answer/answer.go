@@ -1,4 +1,4 @@
-package domain
+package answer
 
 import (
 	"math/rand"

@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"learnDB/internal/domain"
+	"learnDB/internal/domain/answer"
 	"learnDB/internal/web/service"
 	"log"
 	"strconv"
@@ -19,7 +19,7 @@ func NewAnswerController(s *service.ServiceAnswer) *AnswerController {
 
 func (cnt *AnswerController) CreateAnswer(c fiber.Ctx) error {
 
-	ans := new(domain.Answer)
+	ans := new(answer.Answer)
 	if err := c.Bind().JSON(ans); err != nil {
 		log.Printf("create answer error: %s", err)
 		return c.SendStatus(fiber.StatusInternalServerError)

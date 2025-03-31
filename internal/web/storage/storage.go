@@ -1,6 +1,9 @@
 package storage
 
-import "learnDB/internal/domain"
+import (
+	"learnDB/internal/domain"
+	"learnDB/internal/domain/answer"
+)
 
 type QuestionStorage interface {
 	Insert(*domain.Question) error
@@ -11,10 +14,10 @@ type QuestionStorage interface {
 }
 
 type AnswerStorage interface {
-	Insert(*domain.Answer) error
-	Get(int) (*domain.Answer, error)
-	GetAll() ([]domain.Answer, error)
-	Update(*domain.Answer) error
+	Insert(*answer.Answer) error
+	Get(int) (*answer.Answer, error)
+	GetAll() ([]answer.Answer, error)
+	Update(*answer.Answer) error
 	Delete(int) error
 }
 

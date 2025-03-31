@@ -1,7 +1,7 @@
 package service
 
 import (
-	"learnDB/internal/domain"
+	"learnDB/internal/domain/answer"
 	"log"
 )
 
@@ -11,9 +11,9 @@ import (
 // DELETE /api/answer/{id}
 
 type AnswerStorage interface {
-	Insert(*domain.Answer) error
-	Get(int) (*domain.Answer, error)
-	GetAll() ([]domain.Answer, error)
+	Insert(*answer.Answer) error
+	Get(int) (*answer.Answer, error)
+	GetAll() ([]answer.Answer, error)
 	Delete(int) error
 }
 
@@ -25,7 +25,7 @@ func NewServiceAnswer(s AnswerStorage) *ServiceAnswer {
 	return &ServiceAnswer{storage: s}
 }
 
-func (srv *ServiceAnswer) Create(ans *domain.Answer) OperationResult {
+func (srv *ServiceAnswer) Create(ans *answer.Answer) OperationResult {
 	if err := srv.storage.Insert(ans); err != nil {
 		log.Printf("answer service create error: %s", err)
 		return InternalError
@@ -33,7 +33,7 @@ func (srv *ServiceAnswer) Create(ans *domain.Answer) OperationResult {
 	return Ok
 }
 
-func (srv *ServiceAnswer) GetAll() ([]domain.Answer, OperationResult) {
+func (srv *ServiceAnswer) GetAll() ([]answer.Answer, OperationResult) {
 	anses, err := srv.storage.GetAll()
 	if err != nil {
 		log.Printf("answer service get all error: %s", err)
@@ -42,7 +42,7 @@ func (srv *ServiceAnswer) GetAll() ([]domain.Answer, OperationResult) {
 	return anses, Ok
 }
 
-func (srv *ServiceAnswer) Get(id int) (*domain.Answer, OperationResult) {
+func (srv *ServiceAnswer) Get(id int) (*answer.Answer, OperationResult) {
 	ans, err := srv.storage.Get(id)
 	if err != nil {
 		log.Printf("answer service get error: %s", err)
@@ -67,7 +67,7 @@ func (srv *ServiceAnswer) Delete(id int) OperationResult {
 	return Ok
 }
 
-func (srv *ServiceAnswer) CheckAnswer(ans *domain.Answer) OperationResult {
+func (srv *ServiceAnswer) CheckAnswer(ans *answer.Answer) OperationResult {
 	ans.IsCorrect = ans.CheckAnswer()
 	return Ok
 }
