@@ -5,3 +5,4 @@ main
 .env
 server
 /test
+/static

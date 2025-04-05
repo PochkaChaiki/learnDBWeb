@@ -41,10 +41,10 @@ func RetrieveScript(ans string) string {
 }
 
 type TestChecker struct {
-	repo Repository
+	repo DBRepository
 }
 
-func New(repo Repository) *TestChecker {
+func New(repo DBRepository) *TestChecker {
 	return &TestChecker{repo: repo}
 }
 
