@@ -1,4 +1,4 @@
-package testReader
+package config
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type ExcelConfig struct {
 	Tasks []Task   `json:"tasks"`
 }
 
-func MustLoad(configPath string) *ExcelConfig {
+func MustLoadConfig(configPath string) *ExcelConfig {
 	xlsx := new(ExcelConfig)
 	err := cleanenv.ReadConfig(configPath, xlsx)
 	if err != nil {
