@@ -1,0 +1,5 @@
+package testMaker
+
+func TestMake() {
+
+}

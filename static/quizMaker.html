@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz XML Generator</title>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            margin-bottom: 20px;
+        }
+        .question-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .answer-group {
+            margin-left: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+        .answer-variant {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .hidden {
+            display: none;
+        }
+        .xml-preview {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .drag-handle {
+            cursor: move;
+            padding: 5px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quiz XML Generator</h1>
+    
+    <div id="quiz-form">
+        <div class="container">
+            <button type="button" onclick="addQuestion()">
+                Add Question
+            </button>
+        </div>
+        
+        <div id="questions-list">
+            <!-- Questions will be added here -->
+        </div>
+        
+        <div class="container">
+            <button type="button" onclick="generateXML()">
+                Generate XML
+            </button>
+            <button type="button" id="download-btn" class="hidden" onclick="downloadXML()">
+                Download XML
+            </button>
+        </div>
+        
+        <div id="xml-output" class="xml-preview hidden">
+            <!-- XML output will appear here -->
+        </div>
+    </div>
+
+    <!-- Question Template -->
+    <template id="question-template">
+        <div class="question-container" data-id="{id}">
+            <div class="form-group">
+                <label>Question Type:</label>
+                <select class="question-type">
+                    <option value="shortanswer">Short Answer</option>
+                    <option value="truefalse">True/False</option>
+                    <option value="category">Category</option>
+                </select>
+            </div>
+
+            <div id="category" class="hidden">
+                <div class="form-group" id="category">
+                    <label for="">Контрольная работа:</label>
+                    <input type="text" class="category-text">
+                </div>
+            </div>
+            
+            <div id="shortanswer">
+                <div class="form-group">
+                    <label>Question Name:</label>
+                    <input type="text" class="question-name">
+                </div>
+
+                <div class="form-group">
+                    <label>Question Text (HTML):</label>
+                    <textarea class="question-text" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Default Grade:</label>
+                    <input type="number" class="default-grade" value="3.0" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label>Penalty:</label>
+                    <input type="number" class="penalty" value="1.0" step="0.1">
+                </div>
+
+                <h3>Correct Answers</h3>
+                <div class="answer-groups" id="answer-groups-{id}">
+                    <!-- Answer groups will be added here -->
+                </div>
+
+                <button type="button" onclick="addAnswerGroup(this)">Add Answer Group</button>
+            </div>
+            <button type="button" onclick="removeQuestion(this)">Remove Question</button>
+        </div>
+    </template>
+
+    <!-- Answer Group Template -->
+    <template id="answer-group-template">
+        <div class="answer-group" data-id="{groupId}">
+            <div class="form-group">
+                <label>Points:</label>
+                <input type="number" class="answer-points" value="100">
+            </div>
+            
+            <h4>Correct Values</h4>
+            <div class="answer-variants" id="variants-{groupId}">
+                <!-- Answer variants will be added here -->
+            </div>
+            
+            <button type="button" onclick="addAnswerVariant(this)">Add Variant</button>
+            <button type="button" onclick="removeAnswerGroup(this)">Remove Group</button>
+        </div>
+    </template>
+
+    <!-- Answer Variant Template -->
+    <template id="answer-variant-template">
+        <div class="answer-variant">
+            <span class="drag-handle">☰</span>
+            <input type="text" class="answer-value" placeholder="Correct answer value">
+            <button type="button" onclick="removeAnswerVariant(this)">×</button>
+        </div>
+    </template>
+
+    <script>
+        let questionCounter = 0;
+        let groupCounter = 0;
+        
+        // Initialize Sortable for answer groups and variants
+        function initSortable() {
+            document.querySelectorAll('.answer-groups').forEach(el => {
+                new Sortable(el, {
+                    handle: '.drag-handle',
+                    animation: 150
+                });
+            });
+            
+            document.querySelectorAll('.answer-variants').forEach(el => {
+                new Sortable(el, {
+                    handle: '.drag-handle',
+                    animation: 150
+                });
+            });
+        }
+        
+        // Add a new question
+        function addQuestion() {
+            const questionsList = document.getElementById('questions-list');
+            const questionTemplate = document.getElementById('question-template').innerHTML;
+            const questionId = 'q' + questionCounter++;
+            
+            const newQuestionHtml = questionTemplate.replace(/{id}/g, questionId);
+            questionsList.insertAdjacentHTML('beforeend', newQuestionHtml);
+            
+            // Add initial answer group
+            const questionElement = document.querySelector(`.question-container[data-id="${questionId}"]`);
+            addAnswerGroup(questionElement.querySelector('.answer-groups'));
+            
+            initSortable();
+        }
+        
+        // Add a new answer group
+        function addAnswerGroup(button) {
+            const container = button.closest('.question-container') ? 
+                button.closest('.question-container').querySelector('.answer-groups') : 
+                button;
+            
+            const groupId = 'g' + groupCounter++;
+            const groupTemplate = document.getElementById('answer-group-template').innerHTML;
+            const newGroupHtml = groupTemplate.replace(/{groupId}/g, groupId);
+            
+            container.insertAdjacentHTML('beforeend', newGroupHtml);
+            
+            // Add initial answer variant
+            const groupElement = document.querySelector(`.answer-group[data-id="${groupId}"]`);
+            addAnswerVariant(groupElement.querySelector('.answer-variants'));
+            
+            initSortable();
+        }
+        
+        // Add a new answer variant
+        function addAnswerVariant(button) {
+            const container = button.closest('.answer-group') ? 
+                button.closest('.answer-group').querySelector('.answer-variants') : 
+                button;
+            
+            const variantTemplate = document.getElementById('answer-variant-template').innerHTML;
+            container.insertAdjacentHTML('beforeend', variantTemplate);
+            
+            initSortable();
+        }
+        
+        // Remove question
+        function removeQuestion(button) {
+            button.closest('.question-container').remove();
+        }
+        
+        // Remove answer group
+        function removeAnswerGroup(button) {
+            button.closest('.answer-group').remove();
+        }
+        
+        // Remove answer variant
+        function removeAnswerVariant(button) {
+            button.closest('.answer-variant').remove();
+        }
+        
+        // Generate XML from form data
+        function generateXML() {
+            const questions = [];
+            const questionElements = document.querySelectorAll('.question-container');
+            
+            questionElements.forEach(qEl => {
+                const answerGroups = [];
+                const groupElements = qEl.querySelectorAll('.answer-group');
+                
+                groupElements.forEach(gEl => {
+                    const variants = [];
+                    const variantElements = gEl.querySelectorAll('.answer-value');
+                    
+                    variantElements.forEach(vEl => {
+                        variants.push(vEl.value);
+                    });
+                    
+                    answerGroups.push({
+                        values: variants,
+                        points: parseInt(gEl.querySelector('.answer-points').value)
+                    });
+                });
+                
+                const question = {
+                    type: qEl.querySelector('.question-type').value,
+                    name: {
+                        text: qEl.querySelector('.question-name').value
+                    },
+                    questiontext: {
+                        format: "html",
+                        text: qEl.querySelector('.question-text').value
+                    },
+                    generalfeedback: {
+                        format: "html",
+                        text: ""
+                    },
+                    defaultgrade: parseFloat(qEl.querySelector('.default-grade').value),
+                    penalty: parseFloat(qEl.querySelector('.penalty').value),
+                    hidden: 0,
+                    idnumber: "",
+                    usecase: 0,
+                    answer: [{
+                        fraction: 100,
+                        format: "moodle_auto_format",
+                        text: JSON.stringify(answerGroups),
+                        feedback: {
+                            format: "html",
+                            text: ""
+                        }
+                    }],
+                    category: qEl.querySelector(".category-text").value
+                };
+                
+                questions.push(question);
+            });
+            
+            const quiz = {
+                question: questions
+            };
+            
+            // Convert to XML
+            const xmlString = jsonToXml(quiz);
+            const xmlOutput = document.getElementById('xml-output');
+            xmlOutput.textContent = xmlString;
+            xmlOutput.classList.remove('hidden');
+            document.getElementById('download-btn').classList.remove('hidden');
+        }
+        
+        // Convert JSON to XML
+        function jsonToXml(data) {
+            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<quiz>\n';
+            
+            data.question.forEach(q => {
+                xml += `  <question type="${q.type}">\n`;
+                if (q.type == 'category') {
+                    xml += `    <category>\n      <text>$module$/top/По умолчанию для Контрольная работа/${q.category}</text>\n</category>\n`
+                    xml += `    <info format="html">\n      <text></text>\n    </info>\n`;
+                    xml += `\t<idnumber></idnumber>\n`;
+                } else {
+                    xml += `    <name>\n      <text>${escapeXml(q.name.text)}</text>\n    </name>\n`;
+                    xml += `    <questiontext format="${q.questiontext.format}">\n      <text><![CDATA[${q.questiontext.text}]]></text>\n    </questiontext>\n`;
+                    xml += `    <generalfeedback format="${q.generalfeedback.format}">\n      <text>${q.generalfeedback.text}</text>\n    </generalfeedback>\n`;
+                    xml += `    <defaultgrade>${q.defaultgrade.toFixed(7)}</defaultgrade>\n`;
+                    xml += `    <penalty>${q.penalty.toFixed(7)}</penalty>\n`;
+                    xml += `    <hidden>${q.hidden}</hidden>\n`;
+                    xml += `    <idnumber>${q.idnumber}</idnumber>\n`;
+                    xml += `    <usecase>${q.usecase}</usecase>\n`;
+                    
+                    q.answer.forEach(a => {
+                        xml += `    <answer fraction="${a.fraction}" format="${a.format}">\n`;
+                        xml += `      <text>${escapeXml(a.text)}</text>\n`;
+                        xml += `      <feedback format="${a.feedback.format}">\n        <text>${a.feedback.text}</text>\n      </feedback>\n`;
+                        xml += `    </answer>\n`;
+                    });
+                } 
+                
+                xml += `  </question>\n`;
+            });
+            
+            xml += '</quiz>';
+            return xml;
+        }
+        
+        // Escape XML special characters
+        function escapeXml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[<>&'"]/g, function (c) {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                }
+            });
+        }
+        
+        // Download XML file
+        function downloadXML() {
+            const xmlOutput = document.getElementById('xml-output');
+            if (!xmlOutput.textContent) {
+                alert('Please generate XML first');
+                return;
+            }
+            
+            const blob = new Blob([xmlOutput.textContent], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'quiz.xml';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize first question
+        addQuestion();
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Делегирование событий для динамически добавленных элементов
+            document.body.addEventListener('change', function(event) {
+                // Проверяем, было ли изменение в элементе с классом question-type
+                if (event.target.classList.contains('question-type')) {
+                    const select = event.target;
+                    const container = select.closest('.question-container');
+                    const selectedValue = select.value;
+
+                    // Здесь вы можете добавить логику для показа/скрытия элементов
+                    // Например, находим или создаем нужные элементы внутри container
+
+                    // Удаляем предыдущие дополнительные элементы (если они есть)
+                    // const existingExtra = container.querySelector('.extra-content');
+                    // if (existingExtra) {
+                    //     existingExtra.remove();
+                    // }
+
+                    // Создаем и добавляем новый элемент в зависимости от выбранного значения
+                    // if (selectedValue === 'truefalse') {
+                    //     const extraDiv = document.createElement('div');
+                    //     extraDiv.className = 'extra-content';
+                    //     extraDiv.innerHTML = `
+                    //         <div class="form-group">
+                    //             <label>True/False Options:</label>
+                    //             <div>
+                    //                 <input type="radio" name="tf-${container.dataset.id}" value="true"> True
+                    //                 <input type="radio" name="tf-${container.dataset.id}" value="false"> False
+                    //             </div>
+                    //         </div>
+                    //     `;
+                    //     container.appendChild(extraDiv);
+                    // } else 
+                    if (selectedValue === 'category') {
+                        // const extraDiv = document.createElement('div');
+                        // extraDiv.className = 'extra-content';
+                        // extraDiv.innerHTML = `
+                        //     <div class="form-group">
+                        //         <label>Category Options:</label>
+                        //         <input type="text" class="form-control" placeholder="Enter category">
+                        //     </div>
+                        // `;
+                        // container.appendChild(extraDiv);
+                        container.querySelector('div#category').classList.remove('hidden');
+                        container.querySelector('div#shortanswer').classList.add('hidden');
+                        
+
+                    } else {
+                        container.querySelector('div#shortanswer').classList.remove('hidden');
+                        container.querySelector('div#category').classList.add('hidden');
+                    }
+                    // Для 'shortanswer' ничего не добавляем
+                }
+            });
+        });
+    </script>
+</body>
+</html>

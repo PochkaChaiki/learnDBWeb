@@ -11,48 +11,49 @@ import (
 )
 
 func RetrieveScript(ans string) string {
-	scriptStart := "select"
-	scriptEnd := ";"
+	start := "select"
+	end := ";"
 	lowerCasedAns := strings.ToLower(ans)
 
-	scriptStartIndex := strings.Index(lowerCasedAns, scriptStart)
-	if scriptStartIndex == -1 {
+	startIndex := strings.Index(lowerCasedAns, start)
+	if startIndex == -1 {
 		return ""
 	}
 
-	if scriptStartIndex != 0 {
-		switch symbolBefore := []rune(lowerCasedAns)[scriptStartIndex-1]; symbolBefore {
+	if startIndex != 0 {
+		switch symbolBefore := []rune(lowerCasedAns)[startIndex-1]; symbolBefore {
 		case '"':
-			scriptEnd = "\""
+			end = "\""
 		case '(':
-			scriptEnd = "("
+			end = ")"
 		case '[':
-			scriptEnd = "["
+			end = "]"
 		case '\'':
-			scriptEnd = "'"
+			end = "'"
 		default:
 		}
 	}
 
-	scriptEndIndex := strings.Index(lowerCasedAns[scriptStartIndex:], scriptEnd)
+	if endIndex := strings.Index(lowerCasedAns[startIndex:], end); endIndex != -1 {
+		return lowerCasedAns[startIndex : endIndex+1]
+	}
 
-	script := lowerCasedAns[scriptStartIndex:scriptEndIndex]
-	return script
+	return lowerCasedAns[startIndex:]
 }
 
-type TestChecker struct {
+type TestReviewer struct {
 	repo DBRepository
 }
 
-func New(repo DBRepository) *TestChecker {
-	return &TestChecker{repo: repo}
+func New(repo DBRepository) *TestReviewer {
+	return &TestReviewer{repo: repo}
 }
 
 // Function to check if students answer is correct
-func (tc *TestChecker) checkAnswer(sql string, correctAnswers []answer.CorrectAnswer) *domain.CheckResult {
+func (tr *TestReviewer) checkAnswer(sql string, correctAnswers []answer.CorrectAnswer) *domain.CheckResult {
 
 	var checkResult domain.CheckResult
-	qRes, err := tc.repo.RunScript(sql, 1)
+	qRes, err := tr.repo.RunSelect(sql, 1)
 
 	sort.Slice(correctAnswers, func(i, j int) bool {
 		return correctAnswers[j].Points > correctAnswers[i].Points
@@ -62,7 +63,8 @@ func (tc *TestChecker) checkAnswer(sql string, correctAnswers []answer.CorrectAn
 
 	data := qRes.Data[0]
 
-	// Going down the list to find most valuable (grades with most points) correct answer
+	// Going down the slice to find most valuable (grades with most points)
+	// correct answer that matches student's answer
 	for _, corrAns := range correctAnswers {
 
 		if len(corrAns.Values) != len(data) {
@@ -70,7 +72,7 @@ func (tc *TestChecker) checkAnswer(sql string, correctAnswers []answer.CorrectAn
 		}
 
 		ansIsCorrect := true
-		// If every student's part of answer is present at correct answer than student's answer is correct
+		// If every part of student's answer is present at the correct answer than the first one is correct
 		for _, ans := range data {
 			ansToCheck, ok := ans.(string)
 			if !ok {
@@ -96,10 +98,7 @@ func (tc *TestChecker) checkAnswer(sql string, correctAnswers []answer.CorrectAn
 }
 
 // Check the work of single student
-func (tc *TestChecker) GradeTheWork(tt []domain.TestTask) domain.WorkReview {
-	// So main questions are:
-	//   1) How to extract script from excel
-	//   2) How to save check results? : 1] in excel
+func (tr *TestReviewer) GradeTheWork(tt []domain.TestTask) domain.WorkReview {
 	wr := make(domain.WorkReview, 0, len(tt))
 
 	for _, task := range tt {
@@ -107,7 +106,7 @@ func (tc *TestChecker) GradeTheWork(tt []domain.TestTask) domain.WorkReview {
 		sql := RetrieveScript(task.Answer)
 
 		// Run Script
-		res := tc.checkAnswer(sql, task.CorrectAnswers)
+		res := tr.checkAnswer(sql, task.CorrectAnswers)
 
 		// Save information about student and theirs points for answers
 		wr = append(wr, *res)
@@ -116,10 +115,11 @@ func (tc *TestChecker) GradeTheWork(tt []domain.TestTask) domain.WorkReview {
 	return wr
 }
 
-func (tc *TestChecker) CheckTest(sw []*domain.StudentWork) domain.ReviewedWorks {
+func (tr *TestReviewer) CheckTest(sw []domain.StudentWork) domain.ReviewedWorks {
 	res := make(domain.ReviewedWorks, 0, len(sw))
-	for _, work := range sw {
-		wr := tc.GradeTheWork(work.Tasks)
+	for i := range sw {
+		work := &sw[i]
+		wr := tr.GradeTheWork(work.Tasks)
 		totalGrade := 0
 		for _, cr := range wr {
 			totalGrade += cr.Points

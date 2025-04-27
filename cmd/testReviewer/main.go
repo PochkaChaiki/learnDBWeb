@@ -1,41 +1,20 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"learnDB/internal/config"
+	mysql "learnDB/internal/dbRepository/MySQL"
+	"learnDB/internal/testReviewer"
+	trc "learnDB/internal/testReviewer/config"
 
-	"github.com/xuri/excelize/v2"
+	"github.com/jmoiron/sqlx"
 )
 
 func main() {
-	bookname := "test.xlsx"
-	sheetname := "Sheet1"
+	config := config.MustLoad()
+	trConfig := trc.MustLoadConfig("./static/excelConfig.json")
 
-	f, err := excelize.OpenFile(bookname)
-	if err != nil {
-		log.Fatalf("excel open error: %s", err)
-		return
+	db, err := sqlx.Connect("mysql", config.AdminCredential)
+	repo, err := mysql.NewDB()
 
-	}
-
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			log.Fatalf("excel close error: %s", err)
-			return
-		}
-	}()
-
-	rows, err := f.GetRows(sheetname)
-	if err != nil {
-		log.Fatalf("excel read error: %s", err)
-		return
-	}
-	for _, row := range rows {
-		for _, colCell := range row {
-			fmt.Printf(colCell, "\t")
-		}
-		fmt.Println()
-	}
-
+	reviewer := testReviewer.New()
 }

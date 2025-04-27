@@ -1,4 +1,4 @@
-package service
+package excel
 
 import (
 	"errors"
@@ -11,9 +11,12 @@ func TestExcelRead(t *testing.T) {
 	staticPath := "/home/pochka/projects/learnDB/static/"
 	config := config.MustLoadConfig(staticPath + "excelConfig.json")
 
-	tr := new(ExcelReader)
+	tr := &ExcelRepository{
+		bookRead:  staticPath + "testMod.xlsx",
+		sheetRead: "Sheet1",
+	}
 
-	res, err := tr.Read(staticPath+"testMod.xlsx", "Sheet1", config)
+	res, err := tr.Read(config)
 	if err != nil {
 		t.Errorf("excelReader read error: %v", err)
 	}
@@ -29,8 +32,13 @@ func TestExcelWrite(t *testing.T) {
 	staticPath := "/home/pochka/projects/learnDB/static/"
 	config := config.MustLoadConfig(staticPath + "excelConfig.json")
 
-	tr := new(ExcelReader)
-	sw, err := tr.Read(staticPath+"testMod.xlsx", "Sheet1", config)
+	tr := &ExcelRepository{
+		bookRead:   staticPath + "testMod.xlsx",
+		sheetRead:  "Sheet1",
+		bookWrite:  staticPath + "reviewedWorks.xlsx",
+		sheetWrite: "Sheet1",
+	}
+	sw, err := tr.Read(config)
 	if err != nil {
 		t.Fatalf("excelReader read error: %v", err)
 	}
@@ -47,7 +55,7 @@ func TestExcelWrite(t *testing.T) {
 		rws[i].WorkReview = wr
 	}
 
-	err = tr.Write(staticPath+"reviewedWorks.xlsx", "Sheet1", rws)
+	err = tr.Write(rws)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

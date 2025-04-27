@@ -5,4 +5,6 @@ main
 .env
 server
 /test
-/static
+!/static
+TODO.md
+/excelFiles

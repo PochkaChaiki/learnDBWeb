@@ -1,12 +1,12 @@
 package domain
 
+type WorkReview []CheckResult
+
 type StudentWork struct {
 	Name  string
 	Group string
 	Tasks []TestTask
 }
-
-type WorkReview []CheckResult
 
 type ReviewedStudentWork struct {
 	TotalGrade int
