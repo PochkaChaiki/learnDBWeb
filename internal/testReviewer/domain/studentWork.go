@@ -6,6 +6,7 @@ type StudentWork struct {
 	Name  string
 	Group string
 	Tasks []TestTask
+	DB    string
 }
 
 type ReviewedStudentWork struct {

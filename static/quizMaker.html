@@ -346,8 +346,8 @@
             data.question.forEach(q => {
                 xml += `  <question type="${q.type}">\n`;
                 if (q.type == 'category') {
-                    xml += `    <category>\n      <text>$module$/top/По умолчанию для Контрольная работа/${q.category}</text>\n</category>\n`
-                    xml += `    <info format="html">\n      <text></text>\n    </info>\n`;
+                    xml += `\t<category>\n\t  <text>$module$/top/По умолчанию для Контрольная работа/${q.category}</text>\n\t</category>\n`
+                    xml += `\t<info format="html">\n\t  <text></text>\n\t</info>\n`;
                     xml += `\t<idnumber></idnumber>\n`;
                 } else {
                     xml += `    <name>\n      <text>${escapeXml(q.name.text)}</text>\n    </name>\n`;

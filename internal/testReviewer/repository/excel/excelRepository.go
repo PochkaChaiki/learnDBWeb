@@ -18,6 +18,15 @@ type ExcelRepository struct {
 	sheetWrite string
 }
 
+func New(bookread string, sheetread string, bookwrite string, sheetwrite string) *ExcelRepository {
+	return &ExcelRepository{
+		bookRead:   bookread,
+		sheetRead:  sheetread,
+		bookWrite:  bookwrite,
+		sheetWrite: sheetwrite,
+	}
+}
+
 func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork, error) {
 
 	f, err := excelize.OpenFile(er.bookRead)
@@ -49,6 +58,10 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 		if err != nil {
 			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, xlsx.Group+row)
 		}
+		db, err := f.GetCellValue(er.sheetRead, xlsx.DB+row)
+		if err != nil {
+			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, xlsx.DB+row)
+		}
 		sTasks := make([]domain.TestTask, 0, len(xlsx.Tasks))
 		for _, task := range xlsx.Tasks {
 			question, err := f.GetCellValue(er.sheetRead, task.Question+row)
@@ -79,6 +92,7 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 			Name:  name,
 			Group: group,
 			Tasks: sTasks,
+			DB:    db,
 		})
 	}
 

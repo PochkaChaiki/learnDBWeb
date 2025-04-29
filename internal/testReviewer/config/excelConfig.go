@@ -16,6 +16,7 @@ type ExcelConfig struct {
 	Name  []string `json:"name"`
 	Group string   `json:"group"`
 	Tasks []Task   `json:"tasks"`
+	DB    string   `json:"db"`
 }
 
 func MustLoadConfig(configPath string) *ExcelConfig {

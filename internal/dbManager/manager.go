@@ -1,10 +1,10 @@
-package mysql
+package dbManager
 
 import (
 	"errors"
 	"fmt"
 
-	domain "learnDB/internal/dbRepository/domain"
+	domain "learnDB/internal/dbManager/domain"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -14,7 +14,16 @@ type DBManager struct {
 	selectStmt *sqlx.Stmt
 }
 
-func NewDB(db *sqlx.DB) (*DBManager, error) {
+func NewMySQL(db *sqlx.DB) (*DBManager, error) {
+
+	selectStmt, err := db.Preparex("select * from (?) s limit ?;")
+	if err != nil {
+		return nil, err
+	}
+	return &DBManager{db, selectStmt}, nil
+}
+
+func NewPostgreSQL(db *sqlx.DB) (*DBManager, error) {
 
 	selectStmt, err := db.Preparex("select * from (?) s limit ?;")
 	if err != nil {

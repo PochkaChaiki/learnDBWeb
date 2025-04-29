@@ -8,3 +8,4 @@ server
 !/static
 TODO.md
 /excelFiles
+/dbSamples
