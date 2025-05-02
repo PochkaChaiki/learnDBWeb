@@ -7,8 +7,6 @@ import (
 	trc "learnDB/internal/testReviewer/config"
 	"learnDB/internal/testReviewer/repository/excel"
 	"log/slog"
-
-	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -23,25 +21,13 @@ func main() {
 	testReviewerConf := trc.MustLoadConfig("./static/excelConfig.json")
 
 	repo := make(map[string]testReviewer.DBRepository)
-	for _, database := range config.Databases {
-		db, err := sqlx.Connect(database.Name, database.ConnectionString)
+	for name, connStr := range config.Databases {
+		manager, err := dbManager.New(name, connStr)
 		if err != nil {
-			slog.Warn("cannot connect to db", slog.String("db", database.Name), slog.Any("error", err))
+			slog.Warn("cannot create dbManager to db", slog.String("db", name), slog.Any("error", err))
 		}
-		var manager testReviewer.DBRepository
-		switch database.Name {
-		case "mysql":
-			manager, err = dbManager.NewMySQL(db)
-		case "postgres":
-			manager, err = dbManager.NewPostgreSQL(db)
-		default:
-			slog.Warn("database unrecognisable", slog.String("db", database.Name))
-			continue
-		}
-		if err != nil {
-			slog.Warn("cannot connect to db", slog.String("db", database.Name), slog.Any("error", err))
-		}
-		repo[database.Name] = manager
+
+		repo[name] = manager
 	}
 
 	reviewer := testReviewer.New(repo)

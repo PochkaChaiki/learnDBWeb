@@ -14,18 +14,23 @@ type DBManager struct {
 	selectStmt *sqlx.Stmt
 }
 
-func NewMySQL(db *sqlx.DB) (*DBManager, error) {
-
-	selectStmt, err := db.Preparex("select * from (?) s limit ?;")
+func New(name string, connStr string) (*DBManager, error) {
+	var stmt string
+	switch name {
+	case "postgres":
+		stmt = "select * from ($1) s limit $2;"
+	case "mysql":
+		stmt = "select * from (?) s limit ?;"
+	case "sqlite":
+		stmt = "select * from (?) s limit ?;"
+	default:
+		return nil, errors.New("database name is uncrecognizable")
+	}
+	db, err := sqlx.Connect(name, connStr)
 	if err != nil {
 		return nil, err
 	}
-	return &DBManager{db, selectStmt}, nil
-}
-
-func NewPostgreSQL(db *sqlx.DB) (*DBManager, error) {
-
-	selectStmt, err := db.Preparex("select * from (?) s limit ?;")
+	selectStmt, err := db.Preparex(stmt)
 	if err != nil {
 		return nil, err
 	}
