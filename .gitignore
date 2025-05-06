@@ -9,4 +9,4 @@ server
 TODO.md
 /excelFiles
 /dbSamples
-docker-compose.yaml
+docker-compose.yml

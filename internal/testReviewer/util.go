@@ -3,13 +3,19 @@ package testReviewer
 import "strings"
 
 func RetrieveScript(ans string) string {
-	start := "select"
 	end := ";"
 	lowerCasedAns := strings.ToLower(ans)
 
-	startIndex := strings.Index(lowerCasedAns, start)
-	if startIndex == -1 {
+	selectIndex := strings.Index(lowerCasedAns, "select")
+	withIndex := strings.Index(lowerCasedAns, "with")
+
+	if selectIndex == -1 {
 		return ""
+	}
+	startIndex := selectIndex
+
+	if withIndex != -1 && withIndex < startIndex {
+		startIndex = withIndex
 	}
 
 	if startIndex != 0 {
@@ -26,9 +32,9 @@ func RetrieveScript(ans string) string {
 		}
 	}
 
-	if endIndex := strings.Index(lowerCasedAns[startIndex:], end); endIndex != -1 {
-		return lowerCasedAns[startIndex : endIndex+1]
+	if endIndex := strings.LastIndex(lowerCasedAns, end); endIndex != -1 && endIndex > startIndex {
+		return ans[startIndex:endIndex]
 	}
 
-	return lowerCasedAns[startIndex:]
+	return ans[startIndex:]
 }

@@ -4,43 +4,52 @@ import (
 	"learnDB/internal/config"
 	"learnDB/internal/dbManager"
 	"learnDB/internal/testReviewer"
-	trc "learnDB/internal/testReviewer/config"
-	"learnDB/internal/testReviewer/repository/excel"
+	"learnDB/internal/testReviewer/web"
 	"log/slog"
+	"net/http"
+	"os"
 )
 
-const (
-	readPath  = "/home/pochka/projects/learnDB/static/excelConfig.json"
-	readSh    = "Sheet1"
-	writePath = "/home/pochka/projects/learnDB/static/reviewedWorks.xlsx"
-	writeSh   = "Sheet1"
-)
+// const (
+// 	readPath  = "/home/pochka/projects/learnDB/static/excelConfig.json"
+// 	readSh    = "Sheet1"
+// 	writePath = "/home/pochka/projects/learnDB/static/reviewedWorks.xlsx"
+// 	writeSh   = "Sheet1"
+// )
 
 func main() {
 	config := config.MustLoad()
-	testReviewerConf := trc.MustLoadConfig("./static/excelConfig.json")
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	repo := make(map[string]testReviewer.DBRepository)
 	for name, connStr := range config.Databases {
+		logger.Info("connecting to database", slog.String("db", name))
 		manager, err := dbManager.New(name, connStr)
 		if err != nil {
-			slog.Warn("cannot create dbManager to db", slog.String("db", name), slog.Any("error", err))
+			logger.Warn("cannot create dbManager to db", slog.String("db", name), slog.Any("error", err))
 		}
 
 		repo[name] = manager
 	}
 
-	reviewer := testReviewer.New(repo)
+	reviewer := testReviewer.New(repo, "olympics")
 
-	exrepo := excel.New(readPath, readSh, writePath, writeSh)
+	controller := web.NewController(logger, reviewer)
 
-	studentWorks, err := exrepo.Read(testReviewerConf)
-	if err != nil {
-		slog.Error("cannot read excel", slog.Any("error", err))
-		return
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /upload", controller.ExcelHandler)
+
+	s := http.Server{
+		Addr:    config.Address,
+		Handler: mux,
 	}
 
-	reviewedWorks := reviewer.CheckTest(studentWorks)
+	if err := s.ListenAndServe(); err != nil {
+		logger.Error("server run error", slog.Any("error", err))
+	} else {
+		logger.Info("server is running", slog.String("address", config.Address))
+	}
 
-	exrepo.Write(reviewedWorks)
 }

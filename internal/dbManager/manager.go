@@ -6,35 +6,37 @@ import (
 
 	domain "learnDB/internal/dbManager/domain"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 type DBManager struct {
-	db         *sqlx.DB
-	selectStmt *sqlx.Stmt
+	db          *sqlx.DB
+	selectStmt  string
+	controlStmt string
 }
 
-func New(name string, connStr string) (*DBManager, error) {
-	var stmt string
-	switch name {
+func New(driver string, connStr string) (*DBManager, error) {
+	var selectStmt string
+	var controlStmt string
+	switch driver {
 	case "postgres":
-		stmt = "select * from ($1) s limit $2;"
+		controlStmt = "set search_path to %s"
+		selectStmt = "select * from (%s) s limit %d;"
 	case "mysql":
-		stmt = "select * from (?) s limit ?;"
+		controlStmt = "use %s"
+		selectStmt = "select * from (%s) s limit %d;"
 	case "sqlite":
-		stmt = "select * from (?) s limit ?;"
+		selectStmt = "select * from (%s) s limit %d;"
 	default:
 		return nil, errors.New("database name is uncrecognizable")
 	}
-	db, err := sqlx.Connect(name, connStr)
+	db, err := sqlx.Connect(driver, connStr)
 	if err != nil {
 		return nil, err
 	}
-	selectStmt, err := db.Preparex(stmt)
-	if err != nil {
-		return nil, err
-	}
-	return &DBManager{db, selectStmt}, nil
+	return &DBManager{db, selectStmt, controlStmt}, nil
 }
 
 func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.QueryResult, error) {
@@ -59,9 +61,14 @@ func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.Quer
 
 }
 
-func (d *DBManager) RunSelect(sql string, limit int) (*domain.QueryResult, error) {
-
-	rows, err := d.selectStmt.Queryx(sql, limit)
+func (d *DBManager) RunSelect(sql string, schemaName string, limit int) (*domain.QueryResult, error) {
+	if schemaName != "" {
+		_, err := d.db.Exec(fmt.Sprintf(d.controlStmt, schemaName))
+		if err != nil {
+			return nil, fmt.Errorf("RunScript control query error: %w", err)
+		}
+	}
+	rows, err := d.db.Queryx(fmt.Sprintf(d.selectStmt, sql, limit))
 	if err != nil {
 		return nil, fmt.Errorf("RunScript query error: %w", err)
 	}

@@ -13,6 +13,7 @@ type Task struct {
 }
 
 type ExcelConfig struct {
+	Sheet string   `json:"sheet"`
 	Name  []string `json:"name"`
 	Group string   `json:"group"`
 	Tasks []Task   `json:"tasks"`

@@ -62,6 +62,17 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 		if err != nil {
 			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, xlsx.DB+row)
 		}
+		// REMOVE IT AFTER CHECKING ----------------------------------------------------------------------------
+		switch db {
+		case "postgresql":
+			db = "postgres"
+		case "Мне помогали":
+			db = "postgres"
+		case "-":
+			db = "postgres"
+		default:
+		}
+		// -----------------------------------------------------------------------------------------------------
 		sTasks := make([]domain.TestTask, 0, len(xlsx.Tasks))
 		for _, task := range xlsx.Tasks {
 			question, err := f.GetCellValue(er.sheetRead, task.Question+row)
@@ -76,6 +87,9 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 			if err != nil {
 				return nil, fmt.Errorf("excel read error: %v; cell: %s", err, task.CorrectAnswer+row)
 			}
+			// REMOVE IT AFTER CHECKING ----------------------------------------------------------------------------
+			corrAns = fmt.Sprintf("[{\"values\":[\"%s\"], \"points\": 3}]", corrAns)
+			// -----------------------------------------------------------------------------------------------------
 			corrAnswers := make([]domainAnswer.CorrectAnswer, 0)
 			err = json.Unmarshal([]byte(corrAns), &corrAnswers)
 			if err != nil {
@@ -158,7 +172,7 @@ func (er *ExcelRepository) Write(rw domain.ReviewedWorks) error {
 			}
 
 			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+1)
-			if err := f.SetCellStr(er.sheetWrite, cell, review.Error.Error()); err != nil {
+			if err := f.SetCellStr(er.sheetWrite, cell, fmt.Sprintf("%v", review.Error)); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
 
