@@ -1,7 +1,5 @@
 package domain
 
-type WorkReview []CheckResult
-
 type StudentWork struct {
 	Name  string
 	Group string
@@ -9,10 +7,12 @@ type StudentWork struct {
 	DB    string
 }
 
-type ReviewedStudentWork struct {
+type WorkReview struct {
+	Name       string
+	Group      string
+	DB         string
 	TotalGrade int
-	StudentWork
-	WorkReview WorkReview
+	Tasks      []TaskReview
 }
 
-type ReviewedWorks []ReviewedStudentWork
+type ReviewedWorks []WorkReview

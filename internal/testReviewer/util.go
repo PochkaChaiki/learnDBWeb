@@ -4,6 +4,7 @@ import "strings"
 
 func RetrieveScript(ans string) string {
 	end := ";"
+	semicolon := ";"
 	lowerCasedAns := strings.ToLower(ans)
 
 	selectIndex := strings.Index(lowerCasedAns, "select")
@@ -32,7 +33,15 @@ func RetrieveScript(ans string) string {
 		}
 	}
 
-	if endIndex := strings.LastIndex(lowerCasedAns, end); endIndex != -1 && endIndex > startIndex {
+	endIndex := strings.LastIndex(lowerCasedAns, end)
+	if semicolonIndex := strings.LastIndex(lowerCasedAns, semicolon); semicolonIndex > endIndex {
+		endIndex = semicolonIndex
+	}
+
+	if endIndex != -1 && endIndex > startIndex {
+		if ans[endIndex-1:endIndex] == semicolon {
+			return ans[startIndex : endIndex-1]
+		}
 		return ans[startIndex:endIndex]
 	}
 

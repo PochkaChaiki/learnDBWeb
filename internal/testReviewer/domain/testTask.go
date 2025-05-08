@@ -7,3 +7,8 @@ type TestTask struct {
 	CorrectAnswers []answer.CorrectAnswer
 	Answer         string
 }
+
+type TaskReview struct {
+	Task   TestTask
+	Review CheckResult
+}

@@ -1,18 +1,17 @@
 package excel
 
 import (
-	"errors"
 	"learnDB/internal/testReviewer/config"
 	"learnDB/internal/testReviewer/domain"
 	"testing"
 )
 
 func TestExcelRead(t *testing.T) {
-	staticPath := "/home/pochka/projects/learnDB/static/"
+	staticPath := "/home/pochka/projects/learnDB/excelFiles/"
 	config := config.MustLoadConfig(staticPath + "excelConfig.json")
 
 	tr := &ExcelRepository{
-		bookRead:  staticPath + "testMod.xlsx",
+		bookRead:  staticPath + "test.xlsx",
 		sheetRead: "Sheet1",
 	}
 
@@ -29,33 +28,42 @@ func TestExcelRead(t *testing.T) {
 }
 
 func TestExcelWrite(t *testing.T) {
-	staticPath := "/home/pochka/projects/learnDB/static/"
+	staticPath := "/home/pochka/projects/learnDB/excelFiles/"
 	config := config.MustLoadConfig(staticPath + "excelConfig.json")
 
 	tr := &ExcelRepository{
-		bookRead:   staticPath + "testMod.xlsx",
+		bookRead:   staticPath + "test.xlsx",
 		sheetRead:  "Sheet1",
 		bookWrite:  staticPath + "reviewedWorks.xlsx",
 		sheetWrite: "Sheet1",
 	}
-	sw, err := tr.Read(config)
+	studentWorks, err := tr.Read(config)
 	if err != nil {
 		t.Fatalf("excelReader read error: %v", err)
 	}
 
-	rws := make(domain.ReviewedWorks, len(sw))
-	for i := range rws {
-		rws[i].StudentWork = sw[i]
-		rws[i].TotalGrade = 10
-		wr := make(domain.WorkReview, len(rws[i].Tasks))
-		for j := range rws[i].Tasks {
-			wr[j].Points = 3
-			wr[j].Error = errors.New("test error")
+	reviewedWorks := make(domain.ReviewedWorks, 0, len(studentWorks))
+	for _, work := range studentWorks {
+		taskReviews := make([]domain.TaskReview, 0, len(work.Tasks))
+		for _, task := range work.Tasks {
+			taskReviews = append(taskReviews, domain.TaskReview{
+				Task: task,
+				Review: domain.CheckResult{
+					Points: 3,
+					Error:  nil,
+				},
+			})
 		}
-		rws[i].WorkReview = wr
+		reviewedWorks = append(reviewedWorks, domain.WorkReview{
+			Name:       work.Name,
+			Group:      work.Group,
+			DB:         work.DB,
+			TotalGrade: 12,
+			Tasks:      taskReviews,
+		})
 	}
 
-	err = tr.Write(rws)
+	err = tr.Write(reviewedWorks)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

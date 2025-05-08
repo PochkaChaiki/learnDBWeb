@@ -13,22 +13,16 @@ import (
 
 type DBManager struct {
 	db          *sqlx.DB
-	selectStmt  string
 	controlStmt string
 }
 
 func New(driver string, connStr string) (*DBManager, error) {
-	var selectStmt string
 	var controlStmt string
 	switch driver {
 	case "postgres":
 		controlStmt = "set search_path to %s"
-		selectStmt = "select * from (%s) s limit %d;"
 	case "mysql":
 		controlStmt = "use %s"
-		selectStmt = "select * from (%s) s limit %d;"
-	case "sqlite":
-		selectStmt = "select * from (%s) s limit %d;"
 	default:
 		return nil, errors.New("database name is uncrecognizable")
 	}
@@ -36,11 +30,10 @@ func New(driver string, connStr string) (*DBManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DBManager{db, selectStmt, controlStmt}, nil
+	return &DBManager{db, controlStmt}, nil
 }
 
 func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.QueryResult, error) {
-
 	cols, err := rows.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("columns retrieving error: %w", err)
@@ -48,13 +41,16 @@ func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.Quer
 
 	data := make([][]any, 0, limit)
 
-	err = nil
 	for rows.Next() {
 		row, errNew := rows.SliceScan()
 		if errNew != nil {
 			errors.Join(err, errNew)
 		}
 		data = append(data, row)
+		limit--
+		if limit == 0 {
+			break
+		}
 	}
 
 	return &domain.QueryResult{Columns: cols, Data: data}, err
@@ -68,7 +64,7 @@ func (d *DBManager) RunSelect(sql string, schemaName string, limit int) (*domain
 			return nil, fmt.Errorf("RunScript control query error: %w", err)
 		}
 	}
-	rows, err := d.db.Queryx(fmt.Sprintf(d.selectStmt, sql, limit))
+	rows, err := d.db.Queryx(sql)
 	if err != nil {
 		return nil, fmt.Errorf("RunScript query error: %w", err)
 	}

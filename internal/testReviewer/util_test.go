@@ -13,6 +13,8 @@ func TestRetrieveScript(t *testing.T) {
 		{"double quotemarks", `"select * from query"`, "select * from query"},
 		{"single quotemarks", `'select * from query'`, "select * from query"},
 		{"parentheses", `(select * from query)`, "select * from query"},
+		{"answer ... parentheses", `501 (SELECT * FROM query;)`, "SELECT * FROM query"},
+		{"answer ... broken parentheses", `10 (SELECT MIN(age) FROM olympics.games_competito r;`, "SELECT MIN(age) FROM olympics.games_competito r"},
 		{"square brackets", `[select * from query]`, "select * from query"},
 		{"nested query", `select * from (select id from query) s limit 1;`, "select * from (select id from query) s limit 1"},
 		{

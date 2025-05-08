@@ -114,7 +114,7 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 
 }
 
-func (er *ExcelRepository) Write(rw domain.ReviewedWorks) error {
+func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 	f := excelize.NewFile()
 	defer f.Close()
 
@@ -125,37 +125,77 @@ func (er *ExcelRepository) Write(rw domain.ReviewedWorks) error {
 		}
 	}
 
-	for i, sw := range rw {
-		row := strconv.Itoa(i + 1)
-		if err := f.SetCellStr(er.sheetWrite, "A"+row, sw.Name); err != nil {
-			return fmt.Errorf("excel write error: set name \"%v\" error: %v", sw.Name, err)
+	// Set header
+	if err := f.SetCellStr(er.sheetWrite, "A1", "Name"); err != nil {
+		return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Name", err)
+	}
+	if err := f.SetCellStr(er.sheetWrite, "B1", "Group"); err != nil {
+		return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Group", err)
+	}
+	if err := f.SetCellStr(er.sheetWrite, "C1", "TotalGrade"); err != nil {
+		return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "TotalGrade", err)
+	}
+
+	offset := 0
+	for i := 0; i < len(reviewedWorks[0].Tasks); i++ {
+		cell, _ := excelize.CoordinatesToCellName(4+i+offset, 1)
+		num := strconv.Itoa(i + 1)
+		if err := f.SetCellStr(er.sheetWrite, cell, "Question"+num); err != nil {
+			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Question"+num, err)
 		}
-		if err := f.SetCellStr(er.sheetWrite, "B"+row, sw.Group); err != nil {
-			return fmt.Errorf("excel write error: set group \"%v\" error: %v", sw.Group, err)
+		offset++
+		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		if err := f.SetCellStr(er.sheetWrite, cell, "Answer"+num); err != nil {
+			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Answer"+num, err)
 		}
-		if err := f.SetCellInt(er.sheetWrite, "C"+row, sw.TotalGrade); err != nil {
-			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", sw.TotalGrade, err)
+		offset++
+		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		if err := f.SetCellStr(er.sheetWrite, cell, "CorrectAnswer"+num); err != nil {
+			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "CorrectAnswer"+num, err)
+		}
+		offset++
+		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		if err := f.SetCellStr(er.sheetWrite, cell, "Points"+num); err != nil {
+			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Points"+num, err)
+		}
+		offset++
+		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		if err := f.SetCellStr(er.sheetWrite, cell, "Error"+num); err != nil {
+			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Error"+num, err)
+		}
+	}
+
+	for i, workReview := range reviewedWorks {
+		row := strconv.Itoa(i + 2)
+		if err := f.SetCellStr(er.sheetWrite, "A"+row, workReview.Name); err != nil {
+			return fmt.Errorf("excel write error: set name \"%v\" error: %v", workReview.Name, err)
+		}
+		if err := f.SetCellStr(er.sheetWrite, "B"+row, workReview.Group); err != nil {
+			return fmt.Errorf("excel write error: set group \"%v\" error: %v", workReview.Group, err)
+		}
+		if err := f.SetCellInt(er.sheetWrite, "C"+row, workReview.TotalGrade); err != nil {
+			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", workReview.TotalGrade, err)
 		}
 
-		offset := 0
-		for j := 0; j < len(sw.Tasks); j++ {
-			task := sw.Tasks[j]
-			review := sw.WorkReview[j]
+		offset = 0
+		for j, taskReview := range workReview.Tasks {
+			task := taskReview.Task
+			review := taskReview.Review
 
 			// Omitting error cause it will mess the code while not having much affect on algorithm
-			cell, _ := excelize.CoordinatesToCellName(4+j+offset, i+1)
+			cell, _ := excelize.CoordinatesToCellName(4+j+offset, i+2)
 			offset++
 			if err := f.SetCellStr(er.sheetWrite, cell, task.QuestionText); err != nil {
 				return fmt.Errorf("excel write error: task %v, error %v", task, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+1)
+			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
 			offset++
 			if err := f.SetCellStr(er.sheetWrite, cell, task.Answer); err != nil {
 				return fmt.Errorf("excel write error: task %v, error %v", task, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+1)
+			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
 			offset++
 			corrAnss, err := json.Marshal(task.CorrectAnswers)
 			if err != nil {
@@ -165,13 +205,13 @@ func (er *ExcelRepository) Write(rw domain.ReviewedWorks) error {
 				return fmt.Errorf("excel write error: correct answer %v, error %v", corrAnss, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+1)
+			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
 			offset++
 			if err := f.SetCellInt(er.sheetWrite, cell, review.Points); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+1)
+			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
 			if err := f.SetCellStr(er.sheetWrite, cell, fmt.Sprintf("%v", review.Error)); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
