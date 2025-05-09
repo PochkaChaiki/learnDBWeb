@@ -2,7 +2,9 @@ package excel
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	mainDomain "learnDB/internal/domain"
 	domainAnswer "learnDB/internal/domain/answer"
 	"learnDB/internal/testReviewer/config"
 	"learnDB/internal/testReviewer/domain"
@@ -115,6 +117,7 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 }
 
 func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
+	const initialCell int = 5
 	f := excelize.NewFile()
 	defer f.Close()
 
@@ -135,36 +138,40 @@ func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 	if err := f.SetCellStr(er.sheetWrite, "C1", "TotalGrade"); err != nil {
 		return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "TotalGrade", err)
 	}
+	if err := f.SetCellStr(er.sheetWrite, "D1", "Database"); err != nil {
+		return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Database", err)
+	}
 
 	offset := 0
 	for i := 0; i < len(reviewedWorks[0].Tasks); i++ {
-		cell, _ := excelize.CoordinatesToCellName(4+i+offset, 1)
+		cell, _ := excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		num := strconv.Itoa(i + 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "Question"+num); err != nil {
 			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Question"+num, err)
 		}
 		offset++
-		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		cell, _ = excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "Answer"+num); err != nil {
 			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Answer"+num, err)
 		}
 		offset++
-		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		cell, _ = excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "CorrectAnswer"+num); err != nil {
 			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "CorrectAnswer"+num, err)
 		}
 		offset++
-		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		cell, _ = excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "Points"+num); err != nil {
 			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Points"+num, err)
 		}
 		offset++
-		cell, _ = excelize.CoordinatesToCellName(4+i+offset, 1)
+		cell, _ = excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "Error"+num); err != nil {
 			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Error"+num, err)
 		}
 	}
 
+	// Putting students' works reviews to excel
 	for i, workReview := range reviewedWorks {
 		row := strconv.Itoa(i + 2)
 		if err := f.SetCellStr(er.sheetWrite, "A"+row, workReview.Name); err != nil {
@@ -176,6 +183,9 @@ func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 		if err := f.SetCellInt(er.sheetWrite, "C"+row, workReview.TotalGrade); err != nil {
 			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", workReview.TotalGrade, err)
 		}
+		if err := f.SetCellStr(er.sheetWrite, "D"+row, workReview.DB); err != nil {
+			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", workReview.TotalGrade, err)
+		}
 
 		offset = 0
 		for j, taskReview := range workReview.Tasks {
@@ -183,19 +193,20 @@ func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 			review := taskReview.Review
 
 			// Omitting error cause it will mess the code while not having much affect on algorithm
-			cell, _ := excelize.CoordinatesToCellName(4+j+offset, i+2)
+			cell, _ := excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
+			firstCell := cell
 			offset++
 			if err := f.SetCellStr(er.sheetWrite, cell, task.QuestionText); err != nil {
 				return fmt.Errorf("excel write error: task %v, error %v", task, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
+			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
 			if err := f.SetCellStr(er.sheetWrite, cell, task.Answer); err != nil {
 				return fmt.Errorf("excel write error: task %v, error %v", task, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
+			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
 			corrAnss, err := json.Marshal(task.CorrectAnswers)
 			if err != nil {
@@ -205,16 +216,41 @@ func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 				return fmt.Errorf("excel write error: correct answer %v, error %v", corrAnss, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
+			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
 			if err := f.SetCellInt(er.sheetWrite, cell, review.Points); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
 
-			cell, _ = excelize.CoordinatesToCellName(4+j+offset, i+2)
-			if err := f.SetCellStr(er.sheetWrite, cell, fmt.Sprintf("%v", review.Error)); err != nil {
+			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
+			errorStr := fmt.Sprintf("%v", review.Error)
+			if review.Error == nil {
+				errorStr = ""
+			}
+			if err := f.SetCellStr(er.sheetWrite, cell, errorStr); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
+
+			var color []string
+
+			switch {
+			case errors.Is(review.Error, mainDomain.ErrEmptyAnswer):
+				color = []string{"D9D9D9"}
+			case errors.Is(review.Error, mainDomain.ErrIncorrectAnswer):
+				color = []string{"FF3300"}
+			case errors.Is(review.Error, mainDomain.ErrSyntaxError):
+				color = []string{"C65911"}
+			case errors.Is(review.Error, mainDomain.ErrInternalError):
+				color = []string{"33CCFF"}
+			}
+
+			style, err := f.NewStyle(&excelize.Style{
+				Fill: excelize.Fill{Type: "pattern", Color: color, Pattern: 1},
+			})
+			if err != nil {
+				return fmt.Errorf("excel write style error: review %v, error %v", review, err)
+			}
+			f.SetCellStyle(er.sheetWrite, firstCell, cell, style)
 
 		}
 	}

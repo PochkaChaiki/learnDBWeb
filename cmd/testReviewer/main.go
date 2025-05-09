@@ -40,6 +40,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /upload", controller.ExcelHandler)
+	mux.Handle("/", http.FileServer(http.Dir("./static")))
 
 	s := http.Server{
 		Addr:    config.Address,

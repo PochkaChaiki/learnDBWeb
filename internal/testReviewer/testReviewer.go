@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	mainDomain "learnDB/internal/domain"
 	"learnDB/internal/domain/answer"
 	"learnDB/internal/testReviewer/domain"
 )
@@ -31,7 +32,7 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	if sql == "" {
 		return &domain.CheckResult{
 			Points: 0,
-			Error:  errors.New("empty answer"),
+			Error:  mainDomain.ErrEmptyAnswer,
 		}
 	}
 
@@ -52,7 +53,7 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	if len(qRes.Data) == 0 {
 		return &domain.CheckResult{
 			Points: 0,
-			Error:  errors.New("null returned"),
+			Error:  errors.Join(mainDomain.ErrIncorrectAnswer, errors.New("null returned")),
 		}
 	}
 
@@ -99,7 +100,7 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	}
 
 	if !anyAnswer {
-		checkResult.Error = errors.Join(checkResult.Error, errors.New("incorrect answer"))
+		checkResult.Error = errors.Join(mainDomain.ErrIncorrectAnswer, checkResult.Error)
 	}
 	return &checkResult
 }
@@ -110,13 +111,26 @@ func (tr *TestReviewer) GradeTheWork(db string, tt []domain.TestTask) []domain.T
 
 	for _, task := range tt {
 		// Get script from cell
-		sql := RetrieveScript(task.Answer)
+		sql := RetrieveScripts(task.Answer)
+		if len(sql) == 0 {
+			reviews = append(reviews, domain.TaskReview{
+				Task: task,
+				Review: domain.CheckResult{
+					Points: 0,
+					Error:  mainDomain.ErrEmptyAnswer,
+				},
+			})
+			continue
+		}
 
 		// Run Script
 		tr.availableConnToken <- true
-		res := tr.checkAnswer(db, sql, task.CorrectAnswers)
+		res := tr.checkAnswer(db, sql[len(sql)-1], task.CorrectAnswers)
 		<-tr.availableConnToken
 
+		if len(sql) > 1 && res.Points > 0 {
+			res.Points--
+		}
 		// Save information about student and theirs points for answers
 		reviews = append(reviews, domain.TaskReview{
 			Task:   task,
