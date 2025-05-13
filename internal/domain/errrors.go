@@ -1,14 +1,10 @@
 package domain
 
-type Error string
+import "errors"
 
-func (e Error) Error() string {
-	return string(e)
-}
-
-const (
-	ErrEmptyAnswer     Error = Error("empty answer")
-	ErrIncorrectAnswer Error = Error("incorrect answer")
-	ErrSyntaxError     Error = Error("syntax error")
-	ErrInternalError   Error = Error("internal error")
+var (
+	ErrEmptyAnswer     = errors.New("empty answer")
+	ErrIncorrectAnswer = errors.New("incorrect answer")
+	ErrSyntaxError     = errors.New("syntax error")
+	ErrInternalError   = errors.New("internal error")
 )

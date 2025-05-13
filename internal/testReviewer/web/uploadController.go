@@ -1,15 +1,14 @@
 package web
 
 import (
+	"fmt"
 	"learnDB/internal/testReviewer"
 	"learnDB/internal/testReviewer/config"
 	"learnDB/internal/testReviewer/repository/excel"
 
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -27,36 +26,6 @@ func NewController(logger *slog.Logger, tr *testReviewer.TestReviewer) *Controll
 	return &Controller{logger: logger, tr: tr}
 }
 
-func (c *Controller) prepareFileFromResponse(w *http.ResponseWriter, r *http.Request) (tempExcelPath string, tempOutExcelPath string, ok bool) {
-	ok = false
-	excelFile, excelHeader, err := r.FormFile("excelFile")
-	if err != nil {
-		c.logger.Error("get excel file error", slog.Any("error", err))
-		http.Error(*w, "Excel file is required", http.StatusInternalServerError)
-		return
-	}
-	defer excelFile.Close()
-
-	tempExcelPath = "./temp_" + excelHeader.Filename
-	tempOutExcelPath = "./temp_out_" + excelHeader.Filename
-
-	outFile, err := os.Create(tempExcelPath)
-	if err != nil {
-		c.logger.Error("create temp excel file error", slog.Any("error", err))
-		http.Error(*w, "Failed to save Excel file", http.StatusInternalServerError)
-		return
-	}
-	defer outFile.Close()
-
-	if _, err = io.Copy(outFile, excelFile); err != nil {
-		c.logger.Error("save excel file error", slog.Any("error", err))
-		http.Error(*w, "Failed to save Excel file", http.StatusInternalServerError)
-		return
-	}
-	ok = true
-	return
-}
-
 func (c *Controller) ExcelHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(MAX_BYTES); err != nil {
 		c.logger.Error("parse files error", slog.Any("error", err))
@@ -68,12 +37,13 @@ func (c *Controller) ExcelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tempExcelPath, tempOutExcelPath, ok := c.prepareFileFromResponse(&w, r)
-	if !ok {
+	excelFile, excelHeader, err := r.FormFile("excelFile")
+	if err != nil {
+		c.logger.Error("get excel file error", slog.Any("error", err))
+		http.Error(w, "Excel file is required", http.StatusInternalServerError)
 		return
 	}
-
-	defer os.Remove(tempExcelPath)
+	defer excelFile.Close()
 
 	jsonFile, _, err := r.FormFile("jsonConfig")
 	if err != nil {
@@ -90,31 +60,22 @@ func (c *Controller) ExcelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exrepo := excel.New(tempExcelPath, jsonConfig.Sheet, tempOutExcelPath, jsonConfig.Sheet)
+	excelRepo := excel.New(jsonConfig.Sheet)
 
-	studentWorks, err := exrepo.Read(&jsonConfig)
+	studentWorks, err := excelRepo.Read(excelFile, &jsonConfig)
 	if err != nil {
 		c.logger.Error("cannot read excel", slog.Any("error", err))
 		http.Error(w, "Failed to process excel", http.StatusInternalServerError)
 		return
 	}
 
-	reviewedWorks := c.tr.CheckTest(studentWorks)
+	c.tr.CheckTest(studentWorks)
 
-	exrepo.Write(reviewedWorks)
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Disposition", "attachment; filename=NameOfFile")
-
-	sendFile, err := os.Open(tempOutExcelPath)
-	if err != nil {
-		c.logger.Error("cannot open excel file to send", slog.Any("error", err))
-		http.Error(w, "Failed to process excel", http.StatusInternalServerError)
-		return
-	}
-	defer sendFile.Close()
-
-	if _, err = io.Copy(w, sendFile); err != nil {
-		c.logger.Error("cannot send excel file", slog.Any("error", err))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", excelHeader.Filename))
+	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+	if err := excelRepo.Write(w, studentWorks); err != nil {
+		c.logger.Error("cannot write excel", slog.Any("error", err))
 		http.Error(w, "Failed to process excel", http.StatusInternalServerError)
 		return
 	}

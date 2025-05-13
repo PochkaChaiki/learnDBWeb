@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	mainDomain "learnDB/internal/domain"
 	domainAnswer "learnDB/internal/domain/answer"
 	"learnDB/internal/testReviewer/config"
@@ -20,7 +21,7 @@ type ExcelRepository struct {
 	sheetWrite string
 }
 
-func New(bookread string, sheetread string, bookwrite string, sheetwrite string) *ExcelRepository {
+func NewFileRepo(bookread string, sheetread string, bookwrite string, sheetwrite string) *ExcelRepository {
 	return &ExcelRepository{
 		bookRead:   bookread,
 		sheetRead:  sheetread,
@@ -29,7 +30,14 @@ func New(bookread string, sheetread string, bookwrite string, sheetwrite string)
 	}
 }
 
-func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork, error) {
+func New(sheet string) *ExcelRepository {
+	return &ExcelRepository{
+		sheetRead:  sheet,
+		sheetWrite: sheet,
+	}
+}
+
+func (er *ExcelRepository) ReadFile(xlsx *config.ExcelConfig) (domain.Works, error) {
 
 	f, err := excelize.OpenFile(er.bookRead)
 	if err != nil {
@@ -37,17 +45,31 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 	}
 
 	defer f.Close()
+	return er.read(f, xlsx)
+}
 
+func (er *ExcelRepository) Read(r io.Reader, xlsx *config.ExcelConfig) (domain.Works, error) {
+	f, err := excelize.OpenReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("excel open reader error: %w", err)
+	}
+	defer f.Close()
+
+	return er.read(f, xlsx)
+}
+
+func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (domain.Works, error) {
 	rows, err := f.GetRows(er.sheetRead)
 	if err != nil {
 		return nil, fmt.Errorf("excel read error: %s", err)
 	}
 
-	swSlice := make([]domain.StudentWork, 0, len(rows))
+	swSlice := make(domain.Works, 0, len(rows))
 
 	for i := 2; i <= len(rows); i++ {
 		row := strconv.Itoa(i)
 
+		dbInstall := 2
 		var name string
 		for _, col := range xlsx.Name {
 			namePart, err := f.GetCellValue(er.sheetRead, col+row)
@@ -70,12 +92,14 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 			db = "postgres"
 		case "Мне помогали":
 			db = "postgres"
+			dbInstall = 1
 		case "-":
 			db = "postgres"
+			dbInstall = 0
 		default:
 		}
 		// -----------------------------------------------------------------------------------------------------
-		sTasks := make([]domain.TestTask, 0, len(xlsx.Tasks))
+		sTasks := make([]domain.Task, 0, len(xlsx.Tasks))
 		for _, task := range xlsx.Tasks {
 			question, err := f.GetCellValue(er.sheetRead, task.Question+row)
 			if err != nil {
@@ -89,37 +113,62 @@ func (er *ExcelRepository) Read(xlsx *config.ExcelConfig) ([]domain.StudentWork,
 			if err != nil {
 				return nil, fmt.Errorf("excel read error: %v; cell: %s", err, task.CorrectAnswer+row)
 			}
-			// REMOVE IT AFTER CHECKING ----------------------------------------------------------------------------
-			corrAns = fmt.Sprintf("[{\"values\":[\"%s\"], \"points\": 3}]", corrAns)
-			// -----------------------------------------------------------------------------------------------------
 			corrAnswers := make([]domainAnswer.CorrectAnswer, 0)
-			err = json.Unmarshal([]byte(corrAns), &corrAnswers)
-			if err != nil {
-				return nil, fmt.Errorf("excel read error: json unmarshall error: %v; try unmarshall: %s", err, corrAns)
+			if err = json.Unmarshal([]byte(corrAns), &corrAnswers); err != nil {
+				// Stub for cases when answers are kept in incorrect way
+				corrAns = fmt.Sprintf("[{\"values\":[\"%s\"], \"points\": 3}]", corrAns)
+				if err = json.Unmarshal([]byte(corrAns), &corrAnswers); err != nil {
+					return nil, fmt.Errorf("excel read error: json unmarshall error: %v; try unmarshall: %s", err, corrAns)
+				}
 			}
 
-			sTasks = append(sTasks, domain.TestTask{
-				QuestionText:   question,
-				Answer:         answer,
-				CorrectAnswers: corrAnswers,
+			sTasks = append(sTasks, domain.Task{
+				Review: domain.CheckResult{},
+				TestTask: domain.TestTask{
+					QuestionText:   question,
+					Answer:         answer,
+					CorrectAnswers: corrAnswers,
+				},
 			})
 		}
-		swSlice = append(swSlice, domain.StudentWork{
-			Name:  name,
-			Group: group,
-			Tasks: sTasks,
-			DB:    db,
-		})
+
+		sw := new(domain.StudentWork)
+		sw.Name = name
+		sw.Group = group
+		sw.DB = db
+		sw.TotalGrade = dbInstall
+		sw.Tasks = sTasks
+		swSlice = append(swSlice, sw)
 	}
 
 	return swSlice, nil
 
 }
 
-func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
-	const initialCell int = 5
+func (er *ExcelRepository) WriteFile(reviewedWorks domain.Works) error {
 	f := excelize.NewFile()
 	defer f.Close()
+
+	if err := er.write(f, reviewedWorks); err != nil {
+		return err
+	}
+
+	return f.SaveAs(er.bookWrite)
+}
+
+func (er *ExcelRepository) Write(w io.Writer, reviewedWorks domain.Works) error {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	if err := er.write(f, reviewedWorks); err != nil {
+		return err
+	}
+
+	return f.Write(w)
+}
+
+func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) error {
+	const initialCell int = 5
 
 	if er.sheetWrite != "Sheet1" {
 		_, err := f.NewSheet(er.sheetWrite)
@@ -189,7 +238,7 @@ func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 
 		offset = 0
 		for j, taskReview := range workReview.Tasks {
-			task := taskReview.Task
+			task := taskReview.TestTask
 			review := taskReview.Review
 
 			// Omitting error cause it will mess the code while not having much affect on algorithm
@@ -254,5 +303,5 @@ func (er *ExcelRepository) Write(reviewedWorks domain.ReviewedWorks) error {
 
 		}
 	}
-	return f.SaveAs(er.bookWrite)
+	return nil
 }

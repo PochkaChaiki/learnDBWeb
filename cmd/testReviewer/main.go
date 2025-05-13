@@ -10,17 +10,15 @@ import (
 	"os"
 )
 
-// const (
-// 	readPath  = "/home/pochka/projects/learnDB/static/excelConfig.json"
-// 	readSh    = "Sheet1"
-// 	writePath = "/home/pochka/projects/learnDB/static/reviewedWorks.xlsx"
-// 	writeSh   = "Sheet1"
-// )
-
 func main() {
 	config := config.MustLoad()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logFile, err := os.Create("./logfiles")
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	logger := slog.New(slog.NewJSONHandler(logFile, nil))
 
 	repo := make(map[string]testReviewer.DBRepository)
 	for name, connStr := range config.Databases {
@@ -47,10 +45,9 @@ func main() {
 		Handler: mux,
 	}
 
+	logger.Info("start server", slog.String("address", config.Address))
 	if err := s.ListenAndServe(); err != nil {
 		logger.Error("server run error", slog.Any("error", err))
-	} else {
-		logger.Info("server is running", slog.String("address", config.Address))
 	}
 
 }

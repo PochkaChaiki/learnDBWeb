@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .file-input {
+            margin-bottom: 20px;
+        }
+        .submit-btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+        .file-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel Processor</h1>
+    
+    <!-- <form id="uploadForm"> -->
+        <div class="file-input">
+            <label for="excelFile" class="file-label">Excel File:</label>
+            <input type="file" id="excelFile" name="excelFile" accept=".xlsx" required>
+        </div>
+        
+        <div class="file-input">
+            <label for="jsonConfig" class="file-label">JSON Config:</label>
+            <input type="file" id="jsonConfig" name="jsonConfig" accept=".json" required>
+        </div>
+        
+        <button class="submit-btn" onclick="uploadFiles()">Process Files</button>
+    <!-- </form> -->
+    
+    <div id="downloadLink"></div>
+
+    <script>
+
+    async function uploadFiles() {
+        const file1 = document.getElementById('excelFile').files[0];
+        const file2 = document.getElementById('jsonConfig').files[0];
+
+        if (!file1 || !file2) {
+            alert('Пожалуйста, выберите оба файла!');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('excelFile', file1);
+        formData.append('jsonConfig', file2);
+
+            // Отправляем файлы на сервер (например, через Fetch API)
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка сервера');
+            }
+
+            // Получаем ответ как Blob (бинарные данные)
+            const blob = await response.blob();
+
+            // Создаём временную ссылку для скачивания
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'result.xlsx'; // Имя файла, которое будет у пользователя
+            document.body.appendChild(a);
+            a.click();
+
+            // Убираем ссылку после скачивания
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+    }
+    </script>
+</body>
+</html>

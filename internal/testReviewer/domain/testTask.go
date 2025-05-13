@@ -4,11 +4,11 @@ import "learnDB/internal/domain/answer"
 
 type TestTask struct {
 	QuestionText   string
-	CorrectAnswers []answer.CorrectAnswer
 	Answer         string
+	CorrectAnswers []answer.CorrectAnswer
 }
 
-type TaskReview struct {
-	Task   TestTask
+type Task struct {
 	Review CheckResult
+	TestTask
 }
