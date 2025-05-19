@@ -10,6 +10,7 @@ type Task struct {
 	Question      string `json:"question"`
 	Answer        string `json:"answer"`
 	CorrectAnswer string `json:"correct_answer"`
+	Points        int    `json:"points"`
 }
 
 type ExcelConfig struct {

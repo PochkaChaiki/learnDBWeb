@@ -6,12 +6,22 @@ import (
 	"fmt"
 	"io"
 	mainDomain "learnDB/internal/domain"
-	domainAnswer "learnDB/internal/domain/answer"
+	"learnDB/internal/domain/answer"
 	"learnDB/internal/testReviewer/config"
 	"learnDB/internal/testReviewer/domain"
 	"strconv"
 
+	"regexp"
+
 	"github.com/xuri/excelize/v2"
+)
+
+const (
+	scriptExpr = "(?i)(with[^;]*)?select(([\\'\\\"]\\s?;\\s?[\\'\\\"])|[^;])*"
+)
+
+var (
+	errAnswerNotPresent = errors.New("answer is not present")
 )
 
 type ExcelRepository struct {
@@ -19,22 +29,45 @@ type ExcelRepository struct {
 	sheetRead  string
 	bookWrite  string
 	sheetWrite string
+	works      map[*domain.Work]*StudentWork
+	scriptRe   *regexp.Regexp
 }
 
 func NewFileRepo(bookread string, sheetread string, bookwrite string, sheetwrite string) *ExcelRepository {
+	scriptRe, err := regexp.Compile(scriptExpr)
+	if err != nil {
+		return nil
+	}
+
 	return &ExcelRepository{
 		bookRead:   bookread,
 		sheetRead:  sheetread,
 		bookWrite:  bookwrite,
 		sheetWrite: sheetwrite,
+		scriptRe:   scriptRe,
 	}
 }
 
 func New(sheet string) *ExcelRepository {
+	scriptRe, err := regexp.Compile(scriptExpr)
+	if err != nil {
+		return nil
+	}
+
 	return &ExcelRepository{
 		sheetRead:  sheet,
 		sheetWrite: sheet,
+		scriptRe:   scriptRe,
 	}
+}
+
+func (ex *ExcelRepository) retrieveScripts(ans string) []string {
+	return ex.scriptRe.FindAllString(ans, -1)
+}
+
+func (ex *ExcelRepository) answerContains(ans string, corrAnsValue string) bool {
+	res, _ := regexp.MatchString(fmt.Sprintf("(?i)(^(%s)|(%[1]s)$)", corrAnsValue), ans)
+	return res
 }
 
 func (er *ExcelRepository) ReadFile(xlsx *config.ExcelConfig) (domain.Works, error) {
@@ -59,14 +92,18 @@ func (er *ExcelRepository) Read(r io.Reader, xlsx *config.ExcelConfig) (domain.W
 }
 
 func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (domain.Works, error) {
+
 	rows, err := f.GetRows(er.sheetRead)
 	if err != nil {
 		return nil, fmt.Errorf("excel read error: %s", err)
 	}
 
-	swSlice := make(domain.Works, 0, len(rows))
+	er.works = make(map[*domain.Work]*StudentWork)
+
+	workSlice := make(domain.Works, 0, len(rows))
 
 	for i := 2; i <= len(rows); i++ {
+
 		row := strconv.Itoa(i)
 
 		dbInstall := 2
@@ -99,49 +136,84 @@ func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (dom
 		default:
 		}
 		// -----------------------------------------------------------------------------------------------------
-		sTasks := make([]domain.Task, 0, len(xlsx.Tasks))
+		sTasks := make([]Task, 0, len(xlsx.Tasks))
+		wUnits := make([]*domain.CheckUnit, 0, len(xlsx.Tasks))
 		for _, task := range xlsx.Tasks {
+
+			var review domain.CheckResult
+
+			// Reading question
 			question, err := f.GetCellValue(er.sheetRead, task.Question+row)
 			if err != nil {
 				return nil, fmt.Errorf("excel read error: %v; cell: %s", err, task.Question+row)
 			}
-			answer, err := f.GetCellValue(er.sheetRead, task.Answer+row)
+
+			// Read answer
+			answerFromCell, err := f.GetCellValue(er.sheetRead, task.Answer+row)
 			if err != nil {
 				return nil, fmt.Errorf("excel read error: %v; cell: %s", err, task.Answer+row)
 			}
-			corrAns, err := f.GetCellValue(er.sheetRead, task.CorrectAnswer+row)
+
+			// Read correct answer
+			corrAnsFromCell, err := f.GetCellValue(er.sheetRead, task.CorrectAnswer+row)
 			if err != nil {
 				return nil, fmt.Errorf("excel read error: %v; cell: %s", err, task.CorrectAnswer+row)
 			}
-			corrAnswers := make([]domainAnswer.CorrectAnswer, 0)
-			if err = json.Unmarshal([]byte(corrAns), &corrAnswers); err != nil {
+
+			corrAnswers := make([]answer.CorrectAnswer, 0)
+			if err = json.Unmarshal([]byte(corrAnsFromCell), &corrAnswers); err != nil {
 				// Stub for cases when answers are kept in incorrect way
-				corrAns = fmt.Sprintf("[{\"values\":[\"%s\"], \"points\": 3}]", corrAns)
+				corrAns := fmt.Sprintf("[{\"values\":[\"%s\"], \"points\": %d}]", corrAnsFromCell, task.Points)
 				if err = json.Unmarshal([]byte(corrAns), &corrAnswers); err != nil {
 					return nil, fmt.Errorf("excel read error: json unmarshall error: %v; try unmarshall: %s", err, corrAns)
 				}
 			}
 
-			sTasks = append(sTasks, domain.Task{
-				Review: domain.CheckResult{},
-				TestTask: domain.TestTask{
-					QuestionText:   question,
-					Answer:         answer,
-					CorrectAnswers: corrAnswers,
-				},
+			// Parse answer
+			var script string
+			sql := er.retrieveScripts(answerFromCell)
+			if len(sql) == 0 {
+				script = ""
+			} else {
+				script = sql[len(sql)-1]
+			}
+			if len(sql) > 1 {
+				review.Points--
+			}
+
+			// Check corr answer
+			if !er.answerContains(answerFromCell, corrAnsFromCell) {
+				review.Error = errAnswerNotPresent
+			}
+
+			sTasks = append(sTasks, Task{
+				Question:       question,
+				Answer:         answerFromCell,
+				CorrectAnswers: corrAnswers,
 			})
+			unit := new(domain.CheckUnit)
+			unit.Script = script
+			unit.CorrectAnswers = corrAnswers
+			unit.Review = review
+			wUnits = append(wUnits, unit)
 		}
 
-		sw := new(domain.StudentWork)
+		sw := new(StudentWork)
 		sw.Name = name
 		sw.Group = group
-		sw.DB = db
-		sw.TotalGrade = dbInstall
 		sw.Tasks = sTasks
-		swSlice = append(swSlice, sw)
+
+		work := new(domain.Work)
+		work.DB = db
+		work.TotalGrade = dbInstall
+		work.Units = wUnits
+
+		er.works[work] = sw
+
+		workSlice = append(workSlice, work)
 	}
 
-	return swSlice, nil
+	return workSlice, nil
 
 }
 
@@ -192,7 +264,7 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 	}
 
 	offset := 0
-	for i := 0; i < len(reviewedWorks[0].Tasks); i++ {
+	for i := 0; i < len(reviewedWorks[0].Units); i++ {
 		cell, _ := excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		num := strconv.Itoa(i + 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "Question"+num); err != nil {
@@ -210,6 +282,11 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 		}
 		offset++
 		cell, _ = excelize.CoordinatesToCellName(initialCell+i+offset, 1)
+		if err := f.SetCellStr(er.sheetWrite, cell, "ContainsCorrectAnswer"+num); err != nil {
+			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "ContainsCorrectAnswer"+num, err)
+		}
+		offset++
+		cell, _ = excelize.CoordinatesToCellName(initialCell+i+offset, 1)
 		if err := f.SetCellStr(er.sheetWrite, cell, "Points"+num); err != nil {
 			return fmt.Errorf("excel write error: set header name \"%v\" error: %v", "Points"+num, err)
 		}
@@ -221,40 +298,45 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 	}
 
 	// Putting students' works reviews to excel
-	for i, workReview := range reviewedWorks {
+	for i, work := range reviewedWorks {
+		studentWork := er.works[work]
+
 		row := strconv.Itoa(i + 2)
-		if err := f.SetCellStr(er.sheetWrite, "A"+row, workReview.Name); err != nil {
-			return fmt.Errorf("excel write error: set name \"%v\" error: %v", workReview.Name, err)
+		if err := f.SetCellStr(er.sheetWrite, "A"+row, studentWork.Name); err != nil {
+			return fmt.Errorf("excel write error: set name \"%v\" error: %v", studentWork.Name, err)
 		}
-		if err := f.SetCellStr(er.sheetWrite, "B"+row, workReview.Group); err != nil {
-			return fmt.Errorf("excel write error: set group \"%v\" error: %v", workReview.Group, err)
+		if err := f.SetCellStr(er.sheetWrite, "B"+row, studentWork.Group); err != nil {
+			return fmt.Errorf("excel write error: set group \"%v\" error: %v", studentWork.Group, err)
 		}
-		if err := f.SetCellInt(er.sheetWrite, "C"+row, workReview.TotalGrade); err != nil {
-			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", workReview.TotalGrade, err)
+		if err := f.SetCellInt(er.sheetWrite, "C"+row, work.TotalGrade); err != nil {
+			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", work.TotalGrade, err)
 		}
-		if err := f.SetCellStr(er.sheetWrite, "D"+row, workReview.DB); err != nil {
-			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", workReview.TotalGrade, err)
+		if err := f.SetCellStr(er.sheetWrite, "D"+row, work.DB); err != nil {
+			return fmt.Errorf("excel write error: set total grade \"%v\" error: %v", work.DB, err)
 		}
 
 		offset = 0
-		for j, taskReview := range workReview.Tasks {
-			task := taskReview.TestTask
-			review := taskReview.Review
+		for j, taskReview := range studentWork.Tasks {
+			task := taskReview
+			review := work.Units[j].Review
 
 			// Omitting error cause it will mess the code while not having much affect on algorithm
+			// Write Question
 			cell, _ := excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			firstCell := cell
 			offset++
-			if err := f.SetCellStr(er.sheetWrite, cell, task.QuestionText); err != nil {
+			if err := f.SetCellStr(er.sheetWrite, cell, task.Question); err != nil {
 				return fmt.Errorf("excel write error: task %v, error %v", task, err)
 			}
 
+			// Write Answer
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
 			if err := f.SetCellStr(er.sheetWrite, cell, task.Answer); err != nil {
 				return fmt.Errorf("excel write error: task %v, error %v", task, err)
 			}
 
+			// Write Correct Answer
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
 			corrAnss, err := json.Marshal(task.CorrectAnswers)
@@ -265,12 +347,22 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 				return fmt.Errorf("excel write error: correct answer %v, error %v", corrAnss, err)
 			}
 
+			// Write Does Correct Answer is present at Student's Answer
+			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
+			offset++
+			contains := !errors.Is(review.Error, errAnswerNotPresent)
+			if err := f.SetCellBool(er.sheetWrite, cell, contains); err != nil {
+				return fmt.Errorf("excel write error: review %v, error %v", review, err)
+			}
+
+			// Write Points
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
 			if err := f.SetCellInt(er.sheetWrite, cell, review.Points); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
 
+			// Write Errors
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			errorStr := fmt.Sprintf("%v", review.Error)
 			if review.Error == nil {

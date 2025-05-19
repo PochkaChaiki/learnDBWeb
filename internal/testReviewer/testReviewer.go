@@ -3,6 +3,7 @@ package testReviewer
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -27,7 +28,7 @@ func New(repo map[string]DBRepository, schemaName string) *TestReviewer {
 }
 
 // Function to check if students answer is correct
-func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answer.CorrectAnswer) *domain.CheckResult {
+func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answer.CorrectAnswer, strictMode bool) *domain.CheckResult {
 	if sql == "" {
 		return &domain.CheckResult{
 			Points: 0,
@@ -36,7 +37,9 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	}
 
 	var checkResult domain.CheckResult
+	tr.availableConnToken <- true
 	qRes, err := tr.repo[db].RunSelect(sql, tr.schemaName, 1)
+	<-tr.availableConnToken
 
 	if err != nil {
 		return &domain.CheckResult{
@@ -66,36 +69,12 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	//
 	for _, corrAns := range correctAnswers {
 
-		if len(corrAns.Values) != len(data) {
-			continue
+		if strictMode {
+			checkResult.Points, anyAnswer = strictCheck(data, corrAns)
+		} else {
+			checkResult.Points, anyAnswer = lightCheck(data, corrAns)
 		}
-
-		ansIsCorrect := true
-		// If every part of student's answer is present at the correct answer than the first one is correct
-		for _, ans := range data {
-			var ansToCheck string
-			switch ans := ans.(type) {
-			case string:
-				ansToCheck = ans
-			case []uint8:
-				ansToCheck = string(ans)
-			default:
-				ansToCheck = fmt.Sprint(ans)
-			}
-
-			partIsCorrect := false
-			for _, corrAnsPart := range corrAns.Values {
-				partIsCorrect = partIsCorrect || strings.EqualFold(ansToCheck, corrAnsPart)
-				if partIsCorrect {
-					break
-				}
-			}
-			ansIsCorrect = ansIsCorrect && partIsCorrect
-		}
-
-		if ansIsCorrect {
-			checkResult.Points = corrAns.Points
-			anyAnswer = true
+		if anyAnswer {
 			break
 		}
 	}
@@ -106,113 +85,125 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	return &checkResult
 }
 
-// Check the work of single student
-func (tr *TestReviewer) GradeTheWork(work *domain.StudentWork) {
-	// reviews := make([]domain.TaskReview, 0, len(tt))
+func strictCheck(data []any, corrAns answer.CorrectAnswer) (int, bool) {
+	if len(corrAns.Values) != len(data) {
+		return 0, false
+	}
 
-	for i := range work.Tasks {
-		task := &work.Tasks[i]
-		// Get script from cell
-		sql := RetrieveScripts(task.Answer)
-		if len(sql) == 0 {
-			task.Review = domain.CheckResult{
-				Points: 0,
-				Error:  mainDomain.ErrEmptyAnswer,
+	ansIsCorrect := true
+	// If every part of student's answer is present at the correct answer than the first one is correct
+	for _, ans := range data {
+		var ansToCheck string
+		switch ans := ans.(type) {
+		case string:
+			ansToCheck = ans
+		case []uint8:
+			ansToCheck = string(ans)
+		default:
+			ansToCheck = fmt.Sprint(ans)
+		}
+
+		partIsCorrect := false
+		for _, corrAnsPart := range corrAns.Values {
+			partIsCorrect = partIsCorrect || strings.EqualFold(ansToCheck, corrAnsPart)
+			if partIsCorrect {
+				break
 			}
-			// reviews = append(reviews, domain.TaskReview{
-			// 	Task: review,
-			// 	Review: domain.CheckResult{
-			// 		Points: 0,
-			// 		Error:  mainDomain.ErrEmptyAnswer,
-			// 	},
-			// })
-			continue
 		}
+		ansIsCorrect = ansIsCorrect && partIsCorrect
+	}
 
-		// Run Script
-		tr.availableConnToken <- true
-		res := tr.checkAnswer(work.DB, sql[len(sql)-1], task.CorrectAnswers)
-		<-tr.availableConnToken
+	if ansIsCorrect {
+		return corrAns.Points, true
+	}
+	return 0, false
+}
 
-		if len(sql) > 1 && res.Points > 0 {
-			res.Points--
+func lightCheck(data []any, corrAns answer.CorrectAnswer) (int, bool) {
+	coef := float64(len(corrAns.Values)) / float64(len(data))
+	if coef > 1 {
+		return 0, false
+	}
+
+	ansIsCorrect := true
+	for _, corrAnsPart := range corrAns.Values {
+		partIsCorrect := false
+		for _, ans := range data {
+			var ansToCheck string
+			switch ans := ans.(type) {
+			case string:
+				ansToCheck = ans
+			case []uint8:
+				ansToCheck = string(ans)
+			default:
+				ansToCheck = fmt.Sprint(ans)
+			}
+			partIsCorrect = partIsCorrect || strings.EqualFold(ansToCheck, corrAnsPart)
+			if partIsCorrect {
+				break
+			}
 		}
-		// Save information about student and theirs points for answers
-		task.Review = *res
+		ansIsCorrect = ansIsCorrect && partIsCorrect
+	}
+	if ansIsCorrect {
+		return int(math.Round(float64(corrAns.Points) * coef)), true
+	}
+	return 0, false
+}
 
-		// reviews = append(reviews, domain.TaskReview{
-		// 	Task:   task,
-		// 	Review: *res,
-		// })
+// Check the work of single student
+func (tr *TestReviewer) GradeTheWork(work *domain.Work) {
+
+	for i := range work.Units {
+		unit := work.Units[i]
+
+		// Set strict mode to false value to let the application
+		// to find the correct answer among the student's answer columns
+		res := tr.checkAnswer(work.DB, unit.Script, unit.CorrectAnswers, false)
+
+		// Save information about student's points for answers
+		unit.Review.Error = errors.Join(unit.Review.Error, res.Error)
+		unit.Review.Points += res.Points
+		if unit.Review.Points < 0 {
+			unit.Review.Points = 0
+		}
 
 	}
-	// return reviews
 }
 
 func (tr *TestReviewer) CheckTest(sw domain.Works) {
-	// res := make(domain.ReviewedWorks, 0, len(sw))
-	// reviewedWorks := make(chan *domain.WorkReview)
-
 	var wg sync.WaitGroup
 	for i := range sw {
 		wg.Add(1)
-		go func(work *domain.StudentWork) {
+		go func(work *domain.Work) {
 			defer wg.Done()
 
-			// tr.availableConnToken <- true
 			tr.GradeTheWork(work)
-			// <-tr.availableConnToken
 
 			totalGrade := 0
-			for _, t := range work.Tasks {
+			for _, t := range work.Units {
 				totalGrade += t.Review.Points
 			}
 
 			work.TotalGrade += totalGrade
 
-			// reviewedWorks <- &domain.WorkReview{
-			// 	Name:       work.Name,
-			// 	Group:      work.Group,
-			// 	DB:         work.DB,
-			// 	TotalGrade: totalGrade,
-			// 	Tasks:      reviews,
-			// }
 		}(sw[i])
 	}
-
-	// go func() {
 	wg.Wait()
-	// 	close(reviewedWorks)
-	// }()
 
-	// for rw := range reviewedWorks {
-	// 	res = append(res, *rw)
-	// }
-
-	// return res
 }
 
 // // Function to debug
-// func (tr *TestReviewer) CheckTest(sw []domain.StudentWork) domain.ReviewedWorks {
-// 	res := make(domain.ReviewedWorks, 0, len(sw))
-
+// func (tr *TestReviewer) CheckTest(sw domain.Works) {
 // 	for _, work := range sw {
+// 		tr.GradeTheWork(work)
 
-// 		reviews := tr.GradeTheWork(work.DB, work.Tasks)
 // 		totalGrade := 0
-// 		for _, cr := range reviews {
-// 			totalGrade += cr.Review.Points
+// 		for _, t := range work.Units {
+// 			totalGrade += t.Review.Points
 // 		}
 
-// 		log.Println(work.Name)
+// 		work.TotalGrade += totalGrade
 
-// 		res = append(res, domain.WorkReview{
-// 			Name:       work.Name,
-// 			Group:      work.Group,
-// 			DB:         work.DB,
-// 			TotalGrade: totalGrade,
-// 			Tasks:      reviews,
-// 		})
 // 	}
-// 	return res
 // }

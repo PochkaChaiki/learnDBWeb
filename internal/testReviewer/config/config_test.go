@@ -7,26 +7,30 @@ import (
 )
 
 func TestExcelConfigLoad(t *testing.T) {
-	configPath := "/home/pochka/projects/learnDB/static/excelConfig.json"
+	configPath := "/home/pochka/projects/learnDB/excelFiles/testExcelConfig.json"
 	result := config.MustLoadConfig(configPath)
 	want := &config.ExcelConfig{
 		Name:  []string{"A", "B"},
 		Group: "C",
+		DB:    "postgres",
 		Tasks: []config.Task{
 			{
 				Question:      "L",
 				Answer:        "M",
 				CorrectAnswer: "N",
+				Points:        3,
 			},
 			{
 				Question:      "O",
 				Answer:        "P",
 				CorrectAnswer: "Q",
+				Points:        3,
 			},
 			{
 				Question:      "R",
 				Answer:        "S",
 				CorrectAnswer: "T",
+				Points:        3,
 			},
 		},
 	}
