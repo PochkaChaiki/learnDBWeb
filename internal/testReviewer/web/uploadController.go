@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"learnDB/internal/testReviewer"
 	"learnDB/internal/testReviewer/config"
-	"learnDB/internal/testReviewer/repository/excel"
+	"learnDB/internal/testReviewer/sourceRepository/excel"
 
 	"encoding/json"
 	"log/slog"
@@ -53,16 +53,16 @@ func (c *Controller) ExcelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer jsonFile.Close()
 
-	var jsonConfig config.ExcelConfig
-	if err := cleanenv.ParseJSON(jsonFile, &jsonConfig); err != nil {
+	jsonConfig := new(config.ExcelConfig)
+	if err := cleanenv.ParseJSON(jsonFile, jsonConfig); err != nil {
 		c.logger.Error("parse json config error", slog.Any("error", err))
 		http.Error(w, "Failed to read JSON config", http.StatusBadRequest)
 		return
 	}
 
-	excelRepo := excel.New(jsonConfig.Sheet)
+	excelRepo := excel.New(jsonConfig.Sheet, jsonConfig)
 
-	studentWorks, err := excelRepo.Read(excelFile, &jsonConfig)
+	studentWorks, err := excelRepo.Read(excelFile)
 	if err != nil {
 		c.logger.Error("cannot read excel", slog.Any("error", err))
 		http.Error(w, "Failed to process excel", http.StatusInternalServerError)

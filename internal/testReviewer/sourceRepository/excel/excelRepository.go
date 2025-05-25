@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	errAnswerNotPresent = errors.New("answer is not present")
+	ErrAnswerNotPresent = errors.New("answer is not present")
 )
 
 type ExcelRepository struct {
@@ -31,9 +31,10 @@ type ExcelRepository struct {
 	sheetWrite string
 	works      map[*domain.Work]*StudentWork
 	scriptRe   *regexp.Regexp
+	xlsx       *config.ExcelConfig
 }
 
-func NewFileRepo(bookread string, sheetread string, bookwrite string, sheetwrite string) *ExcelRepository {
+func NewFileRepo(bookread string, sheetread string, bookwrite string, sheetwrite string, xlsx *config.ExcelConfig) *ExcelRepository {
 	scriptRe, err := regexp.Compile(scriptExpr)
 	if err != nil {
 		return nil
@@ -45,10 +46,11 @@ func NewFileRepo(bookread string, sheetread string, bookwrite string, sheetwrite
 		bookWrite:  bookwrite,
 		sheetWrite: sheetwrite,
 		scriptRe:   scriptRe,
+		xlsx:       xlsx,
 	}
 }
 
-func New(sheet string) *ExcelRepository {
+func New(sheet string, xlsx *config.ExcelConfig) *ExcelRepository {
 	scriptRe, err := regexp.Compile(scriptExpr)
 	if err != nil {
 		return nil
@@ -58,6 +60,7 @@ func New(sheet string) *ExcelRepository {
 		sheetRead:  sheet,
 		sheetWrite: sheet,
 		scriptRe:   scriptRe,
+		xlsx:       xlsx,
 	}
 }
 
@@ -70,7 +73,7 @@ func (ex *ExcelRepository) answerContains(ans string, corrAnsValue string) bool 
 	return res
 }
 
-func (er *ExcelRepository) ReadFile(xlsx *config.ExcelConfig) (domain.Works, error) {
+func (er *ExcelRepository) ReadFile() (domain.Works, error) {
 
 	f, err := excelize.OpenFile(er.bookRead)
 	if err != nil {
@@ -78,20 +81,20 @@ func (er *ExcelRepository) ReadFile(xlsx *config.ExcelConfig) (domain.Works, err
 	}
 
 	defer f.Close()
-	return er.read(f, xlsx)
+	return er.read(f)
 }
 
-func (er *ExcelRepository) Read(r io.Reader, xlsx *config.ExcelConfig) (domain.Works, error) {
+func (er *ExcelRepository) Read(r io.Reader) (domain.Works, error) {
 	f, err := excelize.OpenReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("excel open reader error: %w", err)
 	}
 	defer f.Close()
 
-	return er.read(f, xlsx)
+	return er.read(f)
 }
 
-func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (domain.Works, error) {
+func (er *ExcelRepository) read(f *excelize.File) (domain.Works, error) {
 
 	rows, err := f.GetRows(er.sheetRead)
 	if err != nil {
@@ -108,20 +111,20 @@ func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (dom
 
 		dbInstall := 2
 		var name string
-		for _, col := range xlsx.Name {
+		for _, col := range er.xlsx.Name {
 			namePart, err := f.GetCellValue(er.sheetRead, col+row)
 			if err != nil {
 				return nil, fmt.Errorf("excel read error: %v; cell: %s", err, col+row)
 			}
 			name += namePart
 		}
-		group, err := f.GetCellValue(er.sheetRead, xlsx.Group+row)
+		group, err := f.GetCellValue(er.sheetRead, er.xlsx.Group+row)
 		if err != nil {
-			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, xlsx.Group+row)
+			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, er.xlsx.Group+row)
 		}
-		db, err := f.GetCellValue(er.sheetRead, xlsx.DB+row)
+		db, err := f.GetCellValue(er.sheetRead, er.xlsx.DB+row)
 		if err != nil {
-			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, xlsx.DB+row)
+			return nil, fmt.Errorf("excel read error: %v; cell: %s", err, er.xlsx.DB+row)
 		}
 		// REMOVE IT AFTER CHECKING ----------------------------------------------------------------------------
 		switch db {
@@ -136,9 +139,9 @@ func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (dom
 		default:
 		}
 		// -----------------------------------------------------------------------------------------------------
-		sTasks := make([]Task, 0, len(xlsx.Tasks))
-		wUnits := make([]*domain.CheckUnit, 0, len(xlsx.Tasks))
-		for _, task := range xlsx.Tasks {
+		sTasks := make([]Task, 0, len(er.xlsx.Tasks))
+		wUnits := make([]*domain.CheckUnit, 0, len(er.xlsx.Tasks))
+		for _, task := range er.xlsx.Tasks {
 
 			var review domain.CheckResult
 
@@ -183,7 +186,7 @@ func (er *ExcelRepository) read(f *excelize.File, xlsx *config.ExcelConfig) (dom
 
 			// Check corr answer
 			if !er.answerContains(answerFromCell, corrAnsFromCell) {
-				review.Error = errAnswerNotPresent
+				review.Error = ErrAnswerNotPresent
 			}
 
 			sTasks = append(sTasks, Task{
@@ -350,7 +353,7 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 			// Write Does Correct Answer is present at Student's Answer
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
-			contains := !errors.Is(review.Error, errAnswerNotPresent)
+			contains := !errors.Is(review.Error, ErrAnswerNotPresent)
 			if err := f.SetCellBool(er.sheetWrite, cell, contains); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}

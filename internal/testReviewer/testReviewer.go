@@ -14,16 +14,14 @@ import (
 )
 
 type TestReviewer struct {
-	repo               map[string]DBRepository
-	schemaName         string
-	availableConnToken chan bool
+	repo       map[string]DBRepository
+	schemaName string
 }
 
 func New(repo map[string]DBRepository, schemaName string) *TestReviewer {
 	return &TestReviewer{
-		repo:               repo,
-		schemaName:         schemaName,
-		availableConnToken: make(chan bool, 100),
+		repo:       repo,
+		schemaName: schemaName,
 	}
 }
 
@@ -37,9 +35,7 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	}
 
 	var checkResult domain.CheckResult
-	tr.availableConnToken <- true
 	qRes, err := tr.repo[db].RunSelect(sql, tr.schemaName, 1)
-	<-tr.availableConnToken
 
 	if err != nil {
 		return &domain.CheckResult{
@@ -154,8 +150,7 @@ func lightCheck(data []any, corrAns answer.CorrectAnswer) (int, bool) {
 // Check the work of single student
 func (tr *TestReviewer) GradeTheWork(work *domain.Work) {
 
-	for i := range work.Units {
-		unit := work.Units[i]
+	for _, unit := range work.Units {
 
 		// Set strict mode to false value to let the application
 		// to find the correct answer among the student's answer columns

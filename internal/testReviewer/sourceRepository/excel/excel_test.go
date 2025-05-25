@@ -12,9 +12,10 @@ func TestExcelRead(t *testing.T) {
 	tr := &ExcelRepository{
 		bookRead:  staticPath + "test.xlsx",
 		sheetRead: "Sheet1",
+		xlsx:      config,
 	}
 
-	res, err := tr.ReadFile(config)
+	res, err := tr.ReadFile()
 	if err != nil {
 		t.Errorf("excelReader read error: %v", err)
 	}
@@ -35,8 +36,9 @@ func TestExcelWrite(t *testing.T) {
 		sheetRead:  "Sheet1",
 		bookWrite:  staticPath + "reviewedWorks.xlsx",
 		sheetWrite: "Sheet1",
+		xlsx:       config,
 	}
-	studentWorks, err := er.ReadFile(config)
+	studentWorks, err := er.ReadFile()
 	if err != nil {
 		t.Fatalf("excelReader read error: %v", err)
 	}
@@ -71,7 +73,7 @@ func TestExcelWrite(t *testing.T) {
 
 func TestRetrieveScript(t *testing.T) {
 
-	er := New("Sheet1")
+	er := New("Sheet1", nil)
 
 	tests := []struct {
 		name  string

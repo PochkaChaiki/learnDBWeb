@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	domain "learnDB/internal/dbManager/domain"
-
-	mainDomain "learnDB/internal/domain"
+	domain "learnDB/internal/domain"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -14,8 +12,9 @@ import (
 )
 
 type DBManager struct {
-	db          *sqlx.DB
-	controlStmt string
+	db                 *sqlx.DB
+	controlStmt        string
+	availableConnToken chan bool
 }
 
 func New(driver string, connStr string) (*DBManager, error) {
@@ -32,13 +31,17 @@ func New(driver string, connStr string) (*DBManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DBManager{db, controlStmt}, nil
+	return &DBManager{
+		db:                 db,
+		controlStmt:        controlStmt,
+		availableConnToken: make(chan bool, 100),
+	}, nil
 }
 
 func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.QueryResult, error) {
 	cols, err := rows.Columns()
 	if err != nil {
-		return nil, errors.Join(mainDomain.ErrInternalError, err) // fmt.Errorf("columns retrieving error: %w", err)
+		return nil, errors.Join(domain.ErrInternalError, err) // fmt.Errorf("columns retrieving error: %w", err)
 	}
 
 	data := make([][]any, 0, limit)
@@ -60,16 +63,18 @@ func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.Quer
 }
 
 func (d *DBManager) RunSelect(sql string, schemaName string, limit int) (*domain.QueryResult, error) {
+	d.availableConnToken <- true
 	if schemaName != "" {
 		_, err := d.db.Exec(fmt.Sprintf(d.controlStmt, schemaName))
 		if err != nil {
-			return nil, errors.Join(mainDomain.ErrInternalError, err) // fmt.Errorf("RunScript control query error: %w", err)
+			return nil, errors.Join(domain.ErrInternalError, err) // fmt.Errorf("RunScript control query error: %w", err)
 		}
 	}
 	rows, err := d.db.Queryx(sql)
 	if err != nil {
-		return nil, errors.Join(mainDomain.ErrSyntaxError, err) // fmt.Errorf("RunScript query error: %w", err)
+		return nil, errors.Join(domain.ErrSyntaxError, err) // fmt.Errorf("RunScript query error: %w", err)
 	}
+	<-d.availableConnToken
 
 	defer rows.Close()
 

@@ -1,4 +1,4 @@
-package testMaker
+package testPreparer
 
 import "encoding/xml"
 
@@ -8,18 +8,18 @@ type Quiz struct {
 }
 
 type question struct {
-	Type            string          `xml:"type,attr"`
-	Name            name            `xml:"name"`
-	QuestionText    questionText    `xml:"questiontext"`
-	GeneralFeedback generalFeedback `xml:"generalfeedback"`
-	DefaultGrade    float64         `xml:"defaultgrade"`
-	Penalty         float64         `xml:"penalty"`
-	Hidden          int             `xml:"hidden"`
-	IDNumber        string          `xml:"idnumber"`
-	UseCase         int             `xml:"usecase"`
-	Answer          []answer        `xml:"answer"`
-	Category        category        `xml:"category,omitempty"`
-	Info            info            `xml:"info,omitempty"`
+	Type            string       `xml:"type,attr"`
+	Name            name         `xml:"name"`
+	QuestionText    questionText `xml:"questiontext"`
+	GeneralFeedback feedback     `xml:"generalfeedback"`
+	DefaultGrade    float64      `xml:"defaultgrade"`
+	Penalty         float64      `xml:"penalty"`
+	Hidden          int          `xml:"hidden"`
+	IDNumber        string       `xml:"idnumber"`
+	UseCase         int          `xml:"usecase"`
+	Answer          []answer     `xml:"answer"`
+	Category        category     `xml:"category,omitempty"`
+	Info            info         `xml:"info,omitempty"`
 }
 
 type name struct {
@@ -27,11 +27,6 @@ type name struct {
 }
 
 type questionText struct {
-	Format string `xml:"format,attr"`
-	Text   string `xml:",cdata"`
-}
-
-type generalFeedback struct {
 	Format string `xml:"format,attr"`
 	Text   string `xml:",cdata"`
 }
@@ -63,7 +58,7 @@ func makeQuestion() *question {
 		QuestionText: questionText{
 			Format: "html",
 		},
-		GeneralFeedback: generalFeedback{
+		GeneralFeedback: feedback{
 			Format: "html",
 		},
 	}

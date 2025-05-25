@@ -1,4 +1,4 @@
-package testMaker
+package testPreparer
 
 type TestMaker struct {
 }
