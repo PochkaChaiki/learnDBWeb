@@ -2,22 +2,23 @@ package dbManager
 
 import (
 	"errors"
-	"fmt"
+	"learnDB/internal/domain"
+	"time"
 
-	domain "learnDB/internal/domain"
-
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 )
 
 type DBManager struct {
-	db                 *sqlx.DB
-	controlStmt        string
-	availableConnToken chan bool
+	repos map[string]domain.DBRepository
 }
 
-func New(driver string, connStr string) (*DBManager, error) {
+func New() *DBManager {
+	return &DBManager{
+		repos: make(map[string]domain.DBRepository),
+	}
+}
+
+func (d *DBManager) AddRepository(driver string, connStr string) error {
 	var controlStmt string
 	switch driver {
 	case "postgres":
@@ -25,59 +26,27 @@ func New(driver string, connStr string) (*DBManager, error) {
 	case "mysql":
 		controlStmt = "use %s"
 	default:
-		return nil, errors.New("database name is uncrecognizable")
+		return errors.New("database name is uncrecognizable")
 	}
 	db, err := sqlx.Connect(driver, connStr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &DBManager{
+	if driver == "mysql" {
+		db.SetConnMaxLifetime(time.Minute * 3)
+		db.SetMaxOpenConns(100)
+		db.SetMaxIdleConns(100)
+	}
+
+	d.repos[driver] = &DBRepository{
 		db:                 db,
 		controlStmt:        controlStmt,
 		availableConnToken: make(chan bool, 100),
-	}, nil
+	}
+	return nil
 }
 
-func (d *DBManager) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.QueryResult, error) {
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, errors.Join(domain.ErrInternalError, err) // fmt.Errorf("columns retrieving error: %w", err)
-	}
-
-	data := make([][]any, 0, limit)
-
-	for rows.Next() {
-		row, errNew := rows.SliceScan()
-		if errNew != nil {
-			errors.Join(err, errNew)
-		}
-		data = append(data, row)
-		limit--
-		if limit == 0 {
-			break
-		}
-	}
-
-	return &domain.QueryResult{Columns: cols, Data: data}, err
-
-}
-
-func (d *DBManager) RunSelect(sql string, schemaName string, limit int) (*domain.QueryResult, error) {
-	d.availableConnToken <- true
-	if schemaName != "" {
-		_, err := d.db.Exec(fmt.Sprintf(d.controlStmt, schemaName))
-		if err != nil {
-			return nil, errors.Join(domain.ErrInternalError, err) // fmt.Errorf("RunScript control query error: %w", err)
-		}
-	}
-	rows, err := d.db.Queryx(sql)
-	if err != nil {
-		return nil, errors.Join(domain.ErrSyntaxError, err) // fmt.Errorf("RunScript query error: %w", err)
-	}
-	<-d.availableConnToken
-
-	defer rows.Close()
-
-	return d.prepareQueryResult(rows, limit)
-
+func (d *DBManager) GetRepository(driver string) (domain.DBRepository, bool) {
+	repo, ok := d.repos[driver]
+	return repo, ok
 }

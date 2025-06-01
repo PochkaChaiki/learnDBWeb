@@ -1,10 +1,27 @@
 package testPreparer
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"fmt"
+)
 
 type Quiz struct {
 	XMLName  xml.Name   `xml:"quiz"`
 	Question []question `xml:"question"`
+}
+
+func makeQuizPtr(name string) *Quiz {
+	return &Quiz{
+		Question: []question{
+			question{
+				Type: "category",
+				Category: category{
+					Text: fmt.Sprintf("$course$/top/%s", name),
+				},
+				Info: makeInfo(),
+			},
+		},
+	}
 }
 
 type question struct {
@@ -22,8 +39,32 @@ type question struct {
 	Info            info         `xml:"info,omitempty"`
 }
 
+func makeQuestion(name string) question {
+	return question{
+		Type: "shortanswer",
+		Name: makeName(name),
+		QuestionText: questionText{
+			Format: "html",
+		},
+		GeneralFeedback: feedback{
+			Format: "html",
+		},
+		Answer:   make([]answer, 0),
+		Penalty:  1 / 3,
+		Hidden:   0,
+		IDNumber: "",
+		UseCase:  0,
+	}
+}
+
 type name struct {
 	Text string `xml:"text"`
+}
+
+func makeName(text string) name {
+	return name{
+		Text: text,
+	}
 }
 
 type questionText struct {
@@ -38,9 +79,25 @@ type answer struct {
 	Feedback feedback `xml:"feedback"`
 }
 
+func makeAnswer(text string, feedback string) answer {
+	return answer{
+		Fraction: 100,
+		Format:   "moodle_auto_format",
+		Text:     text,
+		Feedback: makeFeedback(feedback),
+	}
+}
+
 type feedback struct {
 	Format string `xml:"format,attr"`
 	Text   string `xml:",cdata"`
+}
+
+func makeFeedback(text string) feedback {
+	return feedback{
+		Format: "html",
+		Text:   text,
+	}
 }
 
 type category struct {
@@ -52,14 +109,9 @@ type info struct {
 	Text   string `xml:"text"`
 }
 
-func makeQuestion() *question {
-	return &question{
-		Type: "shortanswer",
-		QuestionText: questionText{
-			Format: "html",
-		},
-		GeneralFeedback: feedback{
-			Format: "html",
-		},
+func makeInfo() info {
+	return info{
+		Format: "html",
+		Text:   "",
 	}
 }

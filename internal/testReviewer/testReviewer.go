@@ -2,10 +2,7 @@ package testReviewer
 
 import (
 	"errors"
-	"fmt"
-	"math"
 	"sort"
-	"strings"
 	"sync"
 
 	mainDomain "learnDB/internal/domain"
@@ -13,16 +10,25 @@ import (
 	"learnDB/internal/testReviewer/domain"
 )
 
+type DBManager interface {
+	GetRepository(string) (mainDomain.DBRepository, bool)
+}
+
 type TestReviewer struct {
-	repo       map[string]DBRepository
+	manager    DBManager
 	schemaName string
 }
 
-func New(repo map[string]DBRepository, schemaName string) *TestReviewer {
+func New(manager DBManager, schemaName string) *TestReviewer {
 	return &TestReviewer{
-		repo:       repo,
+		manager:    manager,
 		schemaName: schemaName,
 	}
+}
+
+// Does this field should be protected somehow???
+func (tr *TestReviewer) ChangeSchema(schemaName string) {
+	tr.schemaName = schemaName
 }
 
 // Function to check if students answer is correct
@@ -35,7 +41,10 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	}
 
 	var checkResult domain.CheckResult
-	qRes, err := tr.repo[db].RunSelect(sql, tr.schemaName, 1)
+
+	// Omit "ok" for now
+	repo, _ := tr.manager.GetRepository(db)
+	qRes, err := repo.RunSelect(sql, tr.schemaName, 1)
 
 	if err != nil {
 		return &domain.CheckResult{
@@ -66,9 +75,9 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	for _, corrAns := range correctAnswers {
 
 		if strictMode {
-			checkResult.Points, anyAnswer = strictCheck(data, corrAns)
+			checkResult.Points, anyAnswer = answer.StrictCheck(data, corrAns)
 		} else {
-			checkResult.Points, anyAnswer = lightCheck(data, corrAns)
+			checkResult.Points, anyAnswer = answer.LightCheck(data, corrAns)
 		}
 		if anyAnswer {
 			break
@@ -79,72 +88,6 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 		checkResult.Error = errors.Join(mainDomain.ErrIncorrectAnswer, checkResult.Error)
 	}
 	return &checkResult
-}
-
-func strictCheck(data []any, corrAns answer.CorrectAnswer) (int, bool) {
-	if len(corrAns.Values) != len(data) {
-		return 0, false
-	}
-
-	ansIsCorrect := true
-	// If every part of student's answer is present at the correct answer than the first one is correct
-	for _, ans := range data {
-		var ansToCheck string
-		switch ans := ans.(type) {
-		case string:
-			ansToCheck = ans
-		case []uint8:
-			ansToCheck = string(ans)
-		default:
-			ansToCheck = fmt.Sprint(ans)
-		}
-
-		partIsCorrect := false
-		for _, corrAnsPart := range corrAns.Values {
-			partIsCorrect = partIsCorrect || strings.EqualFold(ansToCheck, corrAnsPart)
-			if partIsCorrect {
-				break
-			}
-		}
-		ansIsCorrect = ansIsCorrect && partIsCorrect
-	}
-
-	if ansIsCorrect {
-		return corrAns.Points, true
-	}
-	return 0, false
-}
-
-func lightCheck(data []any, corrAns answer.CorrectAnswer) (int, bool) {
-	coef := float64(len(corrAns.Values)) / float64(len(data))
-	if coef > 1 {
-		return 0, false
-	}
-
-	ansIsCorrect := true
-	for _, corrAnsPart := range corrAns.Values {
-		partIsCorrect := false
-		for _, ans := range data {
-			var ansToCheck string
-			switch ans := ans.(type) {
-			case string:
-				ansToCheck = ans
-			case []uint8:
-				ansToCheck = string(ans)
-			default:
-				ansToCheck = fmt.Sprint(ans)
-			}
-			partIsCorrect = partIsCorrect || strings.EqualFold(ansToCheck, corrAnsPart)
-			if partIsCorrect {
-				break
-			}
-		}
-		ansIsCorrect = ansIsCorrect && partIsCorrect
-	}
-	if ansIsCorrect {
-		return int(math.Round(float64(corrAns.Points) * coef)), true
-	}
-	return 0, false
 }
 
 // Check the work of single student

@@ -51,6 +51,12 @@
     
     <div id="downloadLink"></div>
 
+    <div id="testMode">
+        <label for="script">Type your sql-script here:</label>
+        <input type="text" id="script" name="sql-script">
+        <button class="submit-btn" onclick="runScript()">Run Script</button>
+        <div id="scriptOutput"></div>
+    </div>
     <script>
 
     async function uploadFiles() {
@@ -91,6 +97,26 @@
             window.URL.revokeObjectURL(url);
             a.remove();
 
+    }
+
+    async function runScript() {
+        const sql_script = document.getElementById("script");
+        const script_output = document.getElementById("scriptOutput");
+        const response = await fetch('/runScript', {
+            method: 'POST',
+            body: JSON.stringify({
+                sql: sql_script.value,
+                dbms: "postgres"
+            })
+        });
+        if (!response.ok) {
+            throw new Error("Response is bad");
+        }
+
+        const res = await response.json();
+        
+        script_output.textContent = JSON.stringify(res, null, 2);
+        
     }
     </script>
 </body>

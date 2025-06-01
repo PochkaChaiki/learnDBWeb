@@ -1,4 +1,4 @@
-package web
+package controller
 
 import (
 	"fmt"
@@ -17,16 +17,16 @@ const (
 	MAX_BYTES int64 = 1 << 20
 )
 
-type Controller struct {
+type TestReviewerController struct {
 	logger *slog.Logger
 	tr     *testReviewer.TestReviewer
 }
 
-func NewController(logger *slog.Logger, tr *testReviewer.TestReviewer) *Controller {
-	return &Controller{logger: logger, tr: tr}
+func NewTestReviewerController(logger *slog.Logger, tr *testReviewer.TestReviewer) *TestReviewerController {
+	return &TestReviewerController{logger: logger, tr: tr}
 }
 
-func (c *Controller) ExcelHandler(w http.ResponseWriter, r *http.Request) {
+func (c *TestReviewerController) ExcelHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(MAX_BYTES); err != nil {
 		c.logger.Error("parse files error", slog.Any("error", err))
 		w.WriteHeader(http.StatusInternalServerError)

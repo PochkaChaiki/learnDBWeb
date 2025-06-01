@@ -1,10 +1,10 @@
 package main
 
 import (
+	"learnDB/internal/api/controller"
 	"learnDB/internal/config"
 	"learnDB/internal/dbManager"
 	"learnDB/internal/testReviewer"
-	"learnDB/internal/testReviewer/web"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,20 +20,19 @@ func main() {
 	defer logFile.Close()
 	logger := slog.New(slog.NewJSONHandler(logFile, nil))
 
-	repo := make(map[string]testReviewer.DBRepository)
+	manager := dbManager.New()
+
 	for name, connStr := range config.Databases {
 		logger.Info("connecting to database", slog.String("db", name))
-		manager, err := dbManager.New(name, connStr)
+		err := manager.AddRepository(name, connStr)
 		if err != nil {
-			logger.Warn("cannot create dbManager to db", slog.String("db", name), slog.Any("error", err))
+			logger.Warn("cannot create db repository", slog.String("db", name), slog.Any("error", err))
 		}
-
-		repo[name] = manager
 	}
 
-	reviewer := testReviewer.New(repo, "olympics")
+	reviewer := testReviewer.New(manager, "olympics")
 
-	controller := web.NewController(logger, reviewer)
+	controller := controller.NewTestReviewerController(logger, reviewer)
 
 	mux := http.NewServeMux()
 

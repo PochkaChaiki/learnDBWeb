@@ -1,0 +1,72 @@
+services:  
+
+  api:
+    container_name: learndb-api
+    build:
+      context: .
+      dockerfile: cmd/api/Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      systemDB:
+        condition: service_healthy
+        restart: false
+      postgres:
+        condition: service_healthy
+        restart: false
+      mysql:
+        condition: service_healthy
+        restart: false
+
+  systemDB:
+    image: postgres:latest
+    container_name: learndb-systemdb
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - "/home/pochka/projects/learnDB/dbSamples/systemDB.sql:/docker-entrypoint-initdb.d/systemDB.sql"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+      
+
+  postgres:
+    image: postgres:latest
+    container_name: learndb-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PASSWORD}
+      POSTGRES_DB: ${DB}
+    volumes:
+      - "/home/pochka/projects/learnDB/dbSamples/postgres:/docker-entrypoint-initdb.d/"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  mysql:
+    image: mysql:latest
+    container_name: learndb-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PASSWORD}
+      MYSQL_DATABASE: ${DB}
+    volumes:
+      - "/home/pochka/projects/learnDB/dbSamples/mysql:/docker-entrypoint-initdb.d/"
+    healthcheck:
+      test: ["CMD", "mysql", "-u", "root", "-p${PASSWORD}",  "-e", "USE olympics;"]
+      timeout: 20s
+      retries: 10
+    

@@ -1,6 +1,6 @@
 script.sh
 storage.db
-config.yaml
+config*.yaml
 main
 .env
 server
@@ -9,4 +9,4 @@ server
 TODO.md
 /excelFiles
 /dbSamples
-docker-compose.yml
+# docker-compose.yml

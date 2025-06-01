@@ -14,6 +14,7 @@ type Config struct {
 	ExpirationTime  time.Duration     `yaml:"expiration_time" env-default:"1m"`
 	AdminCredential string            `yaml:"admin_credential" env-default:"admin"`
 	Salt            string            `yaml:"salt" env-default:"yeeeeaaaaaahhSAAALLT"`
+	SystemDB        string            `yaml:"system_db" env-required:"true"`
 	Databases       map[string]string `yaml:"databases"`
 	HTTPServer      `yaml:"http_server"`
 }
