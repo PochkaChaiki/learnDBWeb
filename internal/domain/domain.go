@@ -13,14 +13,15 @@ type Task struct {
 }
 
 type DBSample struct {
-	ID          string  `db:"id"`
+	ID          int     `db:"id"`
 	Name        string  `db:"name"`
 	Path        string  `db:"path"`
 	Description *string `db:"description"`
-	DBMS        *string `db:"dbms"`
+	DBMSes      []DBMS
 }
 
 type DBMS struct {
+	ID   int    `db:"id"`
 	Name string `db:"name"`
 }
 
@@ -51,4 +52,11 @@ type Category struct {
 	ID    int    `db:"id"`
 	Name  string `db:"name"`
 	Tasks []Task
+}
+
+type ActiveDBInstance struct {
+	ID               int `db:"id"`
+	DBMS             DBMS
+	DBSample         DBSample
+	ConnectionString string `db:"connection_string"`
 }

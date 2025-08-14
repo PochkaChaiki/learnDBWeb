@@ -1,7 +1,7 @@
 services:  
 
   api:
-    container_name: learndb-api
+    container_name: github.com/pochkachaiki/learndb-api
     build:
       context: .
       dockerfile: cmd/api/Dockerfile
@@ -20,7 +20,7 @@ services:
 
   systemDB:
     image: postgres:latest
-    container_name: learndb-systemdb
+    container_name: github.com/pochkachaiki/learndb-systemdb
     ports:
       - "5433:5432"
     environment:
@@ -28,7 +28,7 @@ services:
       POSTGRES_PASSWORD: ${PASSWORD}
       POSTGRES_DB: postgres
     volumes:
-      - "/home/pochka/projects/learnDB/dbSamples/systemDB.sql:/docker-entrypoint-initdb.d/systemDB.sql"
+      - "/home/pochka/projects/github.com/pochkachaiki/learndb/dbSamples/systemDB.sql:/docker-entrypoint-initdb.d/systemDB.sql"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -39,7 +39,7 @@ services:
 
   postgres:
     image: postgres:latest
-    container_name: learndb-postgres
+    container_name: github.com/pochkachaiki/learndb-postgres
     ports:
       - "5432:5432"
     environment:
@@ -47,7 +47,7 @@ services:
       POSTGRES_PASSWORD: ${PASSWORD}
       POSTGRES_DB: ${DB}
     volumes:
-      - "/home/pochka/projects/learnDB/dbSamples/postgres:/docker-entrypoint-initdb.d/"
+      - "/home/pochka/projects/github.com/pochkachaiki/learndb/dbSamples/postgres:/docker-entrypoint-initdb.d/"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -57,14 +57,14 @@ services:
 
   mysql:
     image: mysql:latest
-    container_name: learndb-mysql
+    container_name: github.com/pochkachaiki/learndb-mysql
     ports:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${PASSWORD}
       MYSQL_DATABASE: ${DB}
     volumes:
-      - "/home/pochka/projects/learnDB/dbSamples/mysql:/docker-entrypoint-initdb.d/"
+      - "/home/pochka/projects/github.com/pochkachaiki/learndb/dbSamples/mysql:/docker-entrypoint-initdb.d/"
     healthcheck:
       test: ["CMD", "mysql", "-u", "root", "-p${PASSWORD}",  "-e", "USE olympics;"]
       timeout: 20s

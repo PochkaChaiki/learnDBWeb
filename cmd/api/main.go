@@ -1,10 +1,11 @@
 package main
 
 import (
-	"learnDB/internal/api"
-	"learnDB/internal/config"
 	"log/slog"
 	"os"
+
+	"github.com/pochkachaiki/learndb/internal/api"
+	"github.com/pochkachaiki/learndb/internal/config"
 )
 
 func main() {

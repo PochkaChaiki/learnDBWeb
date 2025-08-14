@@ -9,4 +9,5 @@ server
 TODO.md
 /excelFiles
 /dbSamples
+logfiles
 # docker-compose.yml
