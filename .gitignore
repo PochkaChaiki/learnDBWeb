@@ -8,6 +8,6 @@ server
 !/static
 TODO.md
 /excelFiles
-/dbSamples
+#/dbSamples
 logfiles
 # docker-compose.yml

@@ -107,7 +107,7 @@ func (s *ScriptManager) ValidateScript(opts *ScriptOptions) (bool, string, error
 
 	var correctAnswers []answer.CorrectAnswer
 
-	if err := json.Unmarshal([]byte(*task.CorrectAnswerJSONB), &correctAnswers); err != nil {
+	if err := json.Unmarshal(task.CorrectAnswerJSONB, &correctAnswers); err != nil {
 		return false, "", err
 	}
 

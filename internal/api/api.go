@@ -1,18 +1,18 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pochkachaiki/learndb/internal/api/controller"
 	"github.com/pochkachaiki/learndb/internal/config"
 	"github.com/pochkachaiki/learndb/internal/dbmgr"
 	"github.com/pochkachaiki/learndb/internal/scriptmgr"
 	"github.com/pochkachaiki/learndb/internal/sysdb/postgres"
 	"github.com/pochkachaiki/learndb/internal/testreview"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type APIServer struct {
@@ -29,7 +29,7 @@ func New(cfg *config.Config, logger *slog.Logger) *APIServer {
 	}
 }
 
-func (api *APIServer) Run() {
+func (api *APIServer) Run(ctx context.Context) {
 
 	manager := dbmgr.New()
 
@@ -44,7 +44,7 @@ func (api *APIServer) Run() {
 	reviewer := testreview.New(manager, "olympics")
 	reviewerController := controller.NewTestReviewerController(api.logger, reviewer)
 
-	db, err := sqlx.Connect("postgres", api.cfg.SystemDB)
+	db, err := pgxpool.New(ctx, api.cfg.SystemDB)
 	if err != nil {
 		api.logger.Error("cannot create system db repository", slog.String("db", "postgres"), slog.Any("error", err))
 	}
