@@ -1,6 +1,7 @@
 package dbmgr
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -20,7 +21,7 @@ type DBRepository struct {
 func (d *DBRepository) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.QueryResult, error) {
 	cols, err := rows.Columns()
 	if err != nil {
-		return nil, errors.Join(domain.ErrInternalError, err) // fmt.Errorf("columns retrieving error: %w", err)
+		return nil, err
 	}
 
 	data := make([][]any, 0, limit)
@@ -38,27 +39,26 @@ func (d *DBRepository) prepareQueryResult(rows *sqlx.Rows, limit int) (*domain.Q
 	}
 
 	return &domain.QueryResult{Columns: cols, Data: data}, err
-
 }
 
-func (d *DBRepository) RunSelect(sql string, schemaName string, limit int) (*domain.QueryResult, error) {
+func (d *DBRepository) RunSelectContext(ctx context.Context, sql string, schemaName string, limit int) (*domain.QueryResult, error) {
 	d.availableConnToken <- true
+	defer func() {
+		<-d.availableConnToken
+	}()
+
 	if schemaName != "" {
-		_, err := d.db.Exec(fmt.Sprintf(d.controlStmt, schemaName))
+		_, err := d.db.ExecContext(ctx, fmt.Sprintf(d.controlStmt, schemaName))
 		if err != nil {
-			<-d.availableConnToken
-			return nil, errors.Join(domain.ErrInternalError, err) // fmt.Errorf("RunScript control query error: %w", err)
+			return nil, err
 		}
 	}
-	rows, err := d.db.Queryx(sql)
+	rows, err := d.db.QueryxContext(ctx, sql)
 	if err != nil {
-		<-d.availableConnToken
-		return nil, errors.Join(domain.ErrSyntaxError, err) // fmt.Errorf("RunScript query error: %w", err)
+		return nil, err
 	}
-	<-d.availableConnToken
 
 	defer rows.Close()
 
 	return d.prepareQueryResult(rows, limit)
-
 }

@@ -1,4 +1,4 @@
-package testreview
+package testreviewer
 
 import "github.com/pochkachaiki/learndb/internal/domain"
 

@@ -1,4 +1,4 @@
-package testreview
+package testreviewer
 
 import (
 	"errors"
@@ -33,11 +33,11 @@ func (tr *TestReviewer) ChangeSchema(schemaName string) {
 }
 
 // Function to check if students answer is correct
-func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answer.CorrectAnswer, strictMode bool) *domain.CheckResult {
+func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answer.CorrectAnswer, strictMode bool) domain.CheckResult {
 	if sql == "" {
-		return &domain.CheckResult{
+		return domain.CheckResult{
 			Points: 0,
-			Error:  mainDomain.ErrEmptyAnswer,
+			Comment:  mainDomain.ErrEmptyAnswer,
 		}
 	}
 
@@ -48,9 +48,9 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	qRes, err := repo.RunSelect(sql, tr.schemaName, 1)
 
 	if err != nil {
-		return &domain.CheckResult{
+		return domain.CheckResult{
 			Points: 0,
-			Error:  err,
+			Comment:  err,
 		}
 	}
 
@@ -59,9 +59,9 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	})
 
 	if len(qRes.Data) == 0 {
-		return &domain.CheckResult{
+		return domain.CheckResult{
 			Points: 0,
-			Error:  errors.Join(mainDomain.ErrIncorrectAnswer, errors.New("null returned")),
+			Comment:  errors.Join(mainDomain.ErrIncorrectAnswer, errors.New("null returned")),
 		}
 	}
 
@@ -86,12 +86,12 @@ func (tr *TestReviewer) checkAnswer(db string, sql string, correctAnswers []answ
 	}
 
 	if !anyAnswer {
-		checkResult.Error = errors.Join(mainDomain.ErrIncorrectAnswer, checkResult.Error)
+		checkResult.Comment = errors.Join(mainDomain.ErrIncorrectAnswer, checkResult.Comment)
 	}
-	return &checkResult
+	return checkResult
 }
 
-// Check the work of single student
+// Check a work of a single student
 func (tr *TestReviewer) GradeTheWork(work *domain.Work) {
 
 	for _, unit := range work.Units {
@@ -101,7 +101,7 @@ func (tr *TestReviewer) GradeTheWork(work *domain.Work) {
 		res := tr.checkAnswer(work.DB, unit.Script, unit.CorrectAnswers, false)
 
 		// Save information about student's points for answers
-		unit.Review.Error = errors.Join(unit.Review.Error, res.Error)
+		unit.Review.Comment = errors.Join(unit.Review.Comment, res.Comment)
 		unit.Review.Points += res.Points
 		if unit.Review.Points < 0 {
 			unit.Review.Points = 0
@@ -132,17 +132,14 @@ func (tr *TestReviewer) CheckTest(sw domain.Works) {
 
 }
 
-// // Function to debug
-// func (tr *TestReviewer) CheckTest(sw domain.Works) {
-// 	for _, work := range sw {
-// 		tr.GradeTheWork(work)
+type WorkerPool struct {
+}
 
-// 		totalGrade := 0
-// 		for _, t := range work.Units {
-// 			totalGrade += t.Review.Points
-// 		}
-
-// 		work.TotalGrade += totalGrade
-
-// 	}
-// }
+func (wp *WorkerPool) Run(tasks <-chan func(domain.Work), size int) error{
+	out := make(chan )
+	for range size {
+		go func() {
+			
+		}
+	}
+}

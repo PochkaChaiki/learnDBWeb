@@ -187,7 +187,7 @@ func (er *ExcelRepository) read(f *excelize.File) (domain.Works, error) {
 
 			// Check corr answer
 			if !er.answerContains(answerFromCell, corrAnsFromCell) {
-				review.Error = ErrAnswerNotPresent
+				review.Comment = ErrAnswerNotPresent
 			}
 
 			sTasks = append(sTasks, Task{
@@ -354,7 +354,7 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 			// Write Does Correct Answer is present at Student's Answer
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
 			offset++
-			contains := !errors.Is(review.Error, ErrAnswerNotPresent)
+			contains := !errors.Is(review.Comment, ErrAnswerNotPresent)
 			if err := f.SetCellBool(er.sheetWrite, cell, contains); err != nil {
 				return fmt.Errorf("excel write error: review %v, error %v", review, err)
 			}
@@ -368,8 +368,8 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 
 			// Write Errors
 			cell, _ = excelize.CoordinatesToCellName(initialCell+j+offset, i+2)
-			errorStr := fmt.Sprintf("%v", review.Error)
-			if review.Error == nil {
+			errorStr := fmt.Sprintf("%v", review.Comment)
+			if review.Comment == nil {
 				errorStr = ""
 			}
 			if err := f.SetCellStr(er.sheetWrite, cell, errorStr); err != nil {
@@ -379,13 +379,13 @@ func (er *ExcelRepository) write(f *excelize.File, reviewedWorks domain.Works) e
 			var color []string
 
 			switch {
-			case errors.Is(review.Error, mainDomain.ErrEmptyAnswer):
+			case errors.Is(review.Comment, mainDomain.ErrEmptyAnswer):
 				color = []string{"D9D9D9"}
-			case errors.Is(review.Error, mainDomain.ErrIncorrectAnswer):
+			case errors.Is(review.Comment, mainDomain.ErrIncorrectAnswer):
 				color = []string{"FF3300"}
-			case errors.Is(review.Error, mainDomain.ErrSyntaxError):
+			case errors.Is(review.Comment, mainDomain.ErrSyntaxError):
 				color = []string{"C65911"}
-			case errors.Is(review.Error, mainDomain.ErrInternalError):
+			case errors.Is(review.Comment, mainDomain.ErrInternalError):
 				color = []string{"33CCFF"}
 			}
 
